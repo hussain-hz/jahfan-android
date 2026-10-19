@@ -234,11 +234,19 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         vm.fillTextPrompt?.takeIf { it.doc === doc }?.let { TextEntry(vm, it, onDone = vm::postFillText) }
         vm.addTextPrompt?.takeIf { it.doc === doc }?.let { TextEntry(vm, it, onDone = vm::postAddText) }
         vm.fieldEdit?.takeIf { it.doc === doc }?.let { FieldEditor(vm, it) }
-        // a Fill & Sign element can be dragged and, for boxes, resized (a comment's: over its panel, below)
         if (ctl.tool == ViewerTool.FillSign) vm.selectedFill?.let { c ->
-            CommentDragOverlay(doc, c, onMove = { dx, dy -> vm.moveFill(doc, c, dx, dy) }, onResize = { vm.resizeFill(doc, c, it) })
+            var active by remember(c.page, c.index, c.rect) { mutableStateOf(false) }
+            if (c.rect.size == 4 && !c.locked) {
+                ObjectTransformOverlay(doc, c.page to c.index, c.page.toInt(),
+                    androidx.compose.ui.geometry.Rect(c.rect[0], c.rect[1], c.rect[2], c.rect[3]),
+                    minFactor = c.fontSize?.let { 4f / it.coerceAtLeast(4f) } ?: 0.1f,
+                    maxFactor = c.fontSize?.let { 400f / it.coerceAtLeast(1f) } ?: Float.MAX_VALUE,
+                    onMove = { dx, dy, finished -> vm.transformFill(doc, c, dx, dy, 1f, finished) },
+                    onScale = { factor, finished -> vm.transformFill(doc, c, 0f, 0f, factor, finished) },
+                    onActive = { active = it })
+            }
+            if (!active) FillElementMenu(vm, doc, c)
         }
-        if (ctl.tool == ViewerTool.FillSign) vm.selectedFill?.let { FillElementMenu(vm, doc, it) }
 
         // Scrubber and page pill (continuous, three pages or more).
         if (vm.readingMode) {

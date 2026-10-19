@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -99,10 +100,10 @@ fun FillSignLayer(vm: AppViewModel, doc: OpenDocument) {
                 if (moved) return@toolGestures
                 val at = doc.viewer.screenToPage(p) ?: return@toolGestures
                 // a tap on something already placed selects it
-                val placed = doc.comments.lastOrNull { c ->
-                    c.fillSign && c.page.toInt() == at.page && c.rect.size == 4 &&
-                        at.x in (c.rect[0] - 6)..(c.rect[2] + 6) && at.y in (c.rect[1] - 6)..(c.rect[3] + 6)
-                }
+                val candidates = doc.comments.filter { it.fillSign && it.page.toInt() == at.page && it.rect.size == 4 }
+                val tolerance = 20f * vm.getApplication<android.app.Application>().resources.displayMetrics.density / doc.viewer.pixelsPerPoint(at.page).coerceAtLeast(0.01f)
+                val hit = nearestObject(candidates.map { androidx.compose.ui.geometry.Rect(it.rect[0], it.rect[1], it.rect[2], it.rect[3]) }, Offset(at.x, at.y), tolerance)
+                val placed = hit?.let { candidates[it] }
                 if (placed != null) {
                     vm.selectedFill = placed
                     return@toolGestures
@@ -335,12 +336,12 @@ fun androidx.compose.foundation.layout.BoxScope.FillElementMenu(vm: AppViewModel
     val page = c.page.toInt()
     val a = doc.viewer.pageToScreen(page, c.rect[0], c.rect[1])
     val b = doc.viewer.pageToScreen(page, c.rect[2], c.rect[3])
-    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-        drawRect(colors.accent, topLeft = Offset(a.x - 4f, a.y - 4f), size = androidx.compose.ui.geometry.Size(b.x - a.x + 8f, b.y - a.y + 8f), style = Stroke(2.dp.toPx()))
-    }
     val density = androidx.compose.ui.platform.LocalDensity.current
+    var menuWidth by remember { mutableStateOf(0) }
+    val edge = with(density) { 8.dp.toPx() }
+    val menuX = a.x.coerceIn(edge, maxOf(edge, doc.viewer.viewW - menuWidth - edge))
     val menuY = with(density) { (a.y - 60.dp.toPx()).coerceAtLeast(doc.viewer.padTop) }
-    Column(Modifier.offset { androidx.compose.ui.unit.IntOffset(a.x.toInt().coerceAtLeast(8), menuY.toInt()) }) {
+    Column(Modifier.align(AbsoluteAlignment.TopLeft).absoluteOffset { androidx.compose.ui.unit.IntOffset(menuX.toInt(), menuY.toInt()) }.onSizeChanged { menuWidth = it.width }) {
         Row(
             Modifier.background(colors.surface, RoundedCornerShape(8.dp)).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

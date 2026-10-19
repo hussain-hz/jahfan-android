@@ -6,13 +6,13 @@ Engine: PdfCraft **0.9.0**, upstream release commit `645016addcfb9078c557f018955
 
 | Suite | Passed | Failed |
 | --- | ---: | ---: |
-| Android mobile bridge / engine workflows | 19 | 0 |
-| Android JVM unit tests | 46 | 0 |
+| Android mobile bridge / engine workflows | 21 | 0 |
+| Android JVM unit tests | 52 | 0 |
 | Annotation library | 42 | 0 |
 | PDF creation and Office import | 49 | 0 |
 | PDF export | 26 | 0 |
 | PDF rendering and inspection | 301 | 0 |
-| Total | 483 | 0 |
+| Total | 491 | 0 |
 
 The original mobile suite also passed all 16 tests before the engine update. The upgraded suite includes explicit checks for Office import → Excel export → PDF save/reopen and invalid photo detection. Voice comment creation, extraction and save/reopen, digital signatures and signer trust, forms, search, selection, annotations, rendering, passwords, attachments and undo are covered by the mobile tests.
 
@@ -41,3 +41,13 @@ This preview is debug-signed. Production signing, full manual testing of every t
 
 - The saved Arabic sample was displayed on the API 37 emulator: connected letters and correct reading order were visually verified. The corrected app started successfully without a crash.
 - The ARM64 APK built successfully; its signature and embedded Arabic OFL licence were verified. Android JVM tests passed.
+
+## Touch manipulation — 0.1.0-beta.3
+
+- Creation dialogs and signature capture remain the same. Placed items are selected automatically; selecting existing items allows a 20 dp proximity margin and prefers a direct hit over a nearby object.
+- Selected text and Fill & Sign items have 48 dp move/resize touch controls. Their bodies can be dragged without opening the keyboard. Scaling keeps the signature aspect ratio and changes a text item's font size, not just its wrapping width. One completed gesture creates one undo step.
+- Added page text is addressed by its content index using `content_update`, preserving Arabic shaping metadata. It is excluded from source paragraph selections using the engine's mixed-object inventory. Its ordinary text edits/deletion also use the added-content API.
+- All 21 native mobile tests passed, including Arabic/English text transforms, image signatures, real Fill & Sign font sizes, undo/redo and save/reopen. All 52 JVM tests passed; six new cases cover selection proximity, zoom-independent deltas, minimum size, page-edge limits and signature proportions.
+- On the API 37 emulator, Arabic text was selected, moved by dragging its body, and enlarged with the resize handle. A signature was drawn using the existing capture screen, placed, moved by its body and enlarged with the handle. Both results were visually checked in the Arabic interface. An English-interface text transform was also checked.
+- Screen-space overlays use absolute top-left alignment as well as absolute offsets. This prevents RTL layout from moving the touch targets away from the PDF object. The corrected menu positions stay within the viewport width.
+- The transform preview is an outline; the PDF artwork updates when the finger lifts. The preview remains a debug-signed ARM64 build, with physical-phone testing still needed.

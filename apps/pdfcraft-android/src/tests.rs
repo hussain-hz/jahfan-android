@@ -460,3 +460,73 @@ fn arabic_added_text_survives_save_and_reopen() {
         std::fs::copy(path, sample).unwrap();
     }
 }
+
+#[test]
+fn placed_text_can_move_and_scale_without_changing_its_words() {
+    for text in ["Jahfan on a phone", "مرحبا بكم في جحفان"] {
+        let s = MobileSession::new();
+        let doc = s.open(blank_pdf(1), None).unwrap().id;
+        s.execute("page_add_text".into(), json!({"doc":doc,"page":1,"text":text,"at":[80,200],"size":12}).to_string()).unwrap();
+        let list = || -> Value { serde_json::from_str(&s.execute("content_list".into(), json!({"doc":doc}).to_string()).unwrap()).unwrap() };
+        let before = list()["items"][0].clone();
+        let rect: Vec<f64> = before["rect"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
+        let moved = vec![rect[0] + 40.0, rect[1] + 30.0, rect[2] + 40.0, rect[3] + 30.0];
+        s.execute("content_update".into(), json!({"doc":doc,"page":1,"index":1,"rect":moved}).to_string()).unwrap();
+        assert_eq!(list()["items"][0]["rect"], json!(moved));
+        let resized = vec![moved[0], moved[1], moved[0] + (moved[2] - moved[0]) * 2.0, moved[1] + (moved[3] - moved[1]) * 2.0];
+        s.execute("content_update".into(), json!({"doc":doc,"page":1,"index":1,"size":24,"rect":resized}).to_string()).unwrap();
+        assert_eq!(list()["items"][0]["size"], 24.0);
+        assert!(!s.find_in_page(doc, 0, text.into(), false, false).unwrap().is_empty());
+        s.execute("edit_undo".into(), json!({"doc":doc}).to_string()).unwrap();
+        assert_eq!(list()["items"][0]["rect"], json!(moved));
+        s.execute("edit_redo".into(), json!({"doc":doc}).to_string()).unwrap();
+        let path = scratch().join("transformed.pdf");
+        s.execute("doc_save".into(), json!({"doc":doc,"path":path}).to_string()).unwrap();
+        let reopened = s.open(path.to_string_lossy().into_owned(), None).unwrap().id;
+        assert!(!s.find_in_page(reopened, 0, text.into(), false, false).unwrap().is_empty());
+    }
+}
+
+#[test]
+fn fill_text_and_image_signature_scale_and_undo_as_one_edit() {
+    let s = MobileSession::new();
+    let doc = s.open(blank_pdf(1), None).unwrap().id;
+    let image = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/app-icon/hicolor/512x512/apps/ai.storyteller.pdfcraft.png");
+    for kind in ["text", "signature"] {
+        let mut args = json!({"doc":doc,"page":1,"type":kind,"at":[100,300]});
+        if kind == "text" {
+            args["text"] = json!("Phone text");
+        } else {
+            args["path"] = json!(image);
+        }
+        s.execute("fill_sign_add".into(), args.to_string()).unwrap();
+        let c = s.comments(doc).unwrap().last().unwrap().clone();
+        let moved = vec![c.rect[0] + 30.0, c.rect[1] + 40.0, c.rect[2] + 30.0, c.rect[3] + 40.0];
+        s.execute("comment_edit".into(), json!({"doc":doc,"page":1,"index":c.index+1,"move":[30,40]}).to_string()).unwrap();
+        for (a, b) in s.comments(doc).unwrap().last().unwrap().rect.iter().zip(&moved) {
+            assert!((a - b).abs() < 0.01);
+        }
+        let target = vec![moved[0], moved[1], moved[0] + (moved[2] - moved[0]) * 1.5, moved[1] + (moved[3] - moved[1]) * 1.5];
+        let mut edit = json!({"doc":doc,"page":1,"index":c.index+1,"rect":target});
+        if let Some(size) = c.font_size {
+            edit["font_size"] = json!(size * 1.5);
+        }
+        s.execute("comment_edit".into(), edit.to_string()).unwrap();
+        let resized = s.comments(doc).unwrap().last().unwrap().clone();
+        for (a, b) in resized.rect.iter().zip(&target) {
+            assert!((a - b).abs() < 0.01);
+        }
+        if let Some(size) = c.font_size {
+            assert_eq!(resized.font_size, Some(size * 1.5));
+        }
+        s.execute("edit_undo".into(), json!({"doc":doc}).to_string()).unwrap();
+        for (a, b) in s.comments(doc).unwrap().last().unwrap().rect.iter().zip(&moved) {
+            assert!((a - b).abs() < 0.01);
+        }
+        s.execute("edit_redo".into(), json!({"doc":doc}).to_string()).unwrap();
+    }
+    let path = scratch().join("fill-transformed.pdf");
+    s.execute("doc_save".into(), json!({"doc":doc,"path":path}).to_string()).unwrap();
+    let reopened = s.open(path.to_string_lossy().into_owned(), None).unwrap().id;
+    assert_eq!(s.comments(reopened).unwrap().len(), 2);
+}

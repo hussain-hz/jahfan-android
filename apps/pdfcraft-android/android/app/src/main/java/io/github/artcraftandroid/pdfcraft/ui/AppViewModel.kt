@@ -330,6 +330,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun loadLinks(eng: Engine, doc: OpenDocument) {
         doc.widgets = runCatching { eng.command { widgets(doc.id) } }.getOrDefault(emptyList())
         doc.comments = runCatching { eng.command { comments(doc.id) } }.getOrDefault(emptyList())
+        if (document === doc) selectedFill = selectedFill?.let { selected ->
+            doc.comments.firstOrNull { if (selected.name != null) it.name == selected.name else it.page == selected.page && it.index == selected.index }
+        }
         doc.links = runCatching {
             eng.command { (0 until doc.info.pages.size).associateWith { p -> links(doc.id, p.toUInt()) } }
         }.getOrDefault(emptyMap())
@@ -340,8 +343,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * Run engine tool [name] on [doc] (its `doc` argument is filled in), then refresh. [onDone]
      * gets the result; a refusal is told in a snackbar.
      */
-    fun runTool(doc: OpenDocument, name: String, args: Map<String, Any?> = emptyMap(), onDone: (JSONObject) -> Unit = {}) {
-        val eng = engine ?: return
+    fun runTool(doc: OpenDocument, name: String, args: Map<String, Any?> = emptyMap(), onFinished: () -> Unit = {}, onDone: (JSONObject) -> Unit = {}) {
+        val eng = engine ?: run { onFinished(); return }
         viewModelScope.launch {
             try {
                 val r = eng.tool(name, args + ("doc" to doc.id))
@@ -349,6 +352,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 onDone(r)
             } catch (e: MobileException) {
                 tell(e.userMessage)
+            } finally {
+                onFinished()
             }
         }
     }
@@ -1067,7 +1072,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             FillElement.Signature, FillElement.Initials -> args["path"] = signatures.fileFor(element == FillElement.Initials).absolutePath
             else -> Unit
         }
-        runTool(doc, "fill_sign_add", args)
+        runTool(doc, "fill_sign_add", args) { selectedFill = doc.comments.lastOrNull { it.fillSign && it.page.toInt() == at.page } }
     }
 
     /** The outline of a [w] x [h] box with corners of radius [r], centred on ([cx], [cy]), as stroke points. */
@@ -1107,7 +1112,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 runTool(doc, "fill_sign_add", mapOf(
                     "page" to at.page + 1, "type" to if (pad.initials) "initials" else "signature",
                     "at" to listOf(at.x.toDouble(), at.y.toDouble()), "path" to target.absolutePath, "author" to author,
-                ))
+                )) { selectedFill = doc.comments.lastOrNull { it.fillSign && it.page.toInt() == at.page } }
             } else {
                 tell("Tap where you want to place your ${if (pad.initials) "initials" else "signature"}")
             }
@@ -1413,7 +1418,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (paragraphs.containsKey(page)) return
         val r = runCatching { eng.tool("text_paragraphs", mapOf("doc" to doc.id, "page" to page + 1)) }.getOrNull() ?: return
         val arr = r.optJSONArray("paragraphs") ?: return
-        paragraphs[page] = (0 until arr.length()).mapNotNull { i ->
+        val source = (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
             val rect = o.optJSONArray("rect") ?: return@mapNotNull null
             val font = o.optString("font")
@@ -1425,6 +1430,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 color = o.optString("color").takeIf { it.startsWith("#") },
             )
         }
+        // Keep added objects separate from extracted source paragraphs. In particular, Arabic
+        // added text must be rewritten by content_update, which retains its shaping metadata.
+        val inventory = runCatching { eng.tool("object_list", mapOf("doc" to doc.id, "page" to page + 1)).optJSONArray("objects") }.getOrNull()
+        val sourceIndexes = (0 until (inventory?.length() ?: 0)).mapNotNull { i ->
+            inventory?.optJSONObject(i)?.takeIf { it.optString("kind") == "text" }?.optInt("index")
+        }.toSet()
+        val added = runCatching { eng.tool("content_list", mapOf("doc" to doc.id)).optJSONArray("items") }.getOrNull()
+        val placed = (0 until (added?.length() ?: 0)).mapNotNull { i ->
+            val o = added?.optJSONObject(i)?.takeIf { it.optInt("page") == page + 1 && it.optString("type") == "text" } ?: return@mapNotNull null
+            val r = o.optJSONArray("rect") ?: return@mapNotNull null
+            val index = o.optInt("index")
+            io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph(page, -index, o.optString("text"),
+                FloatArray(4) { r.optDouble(it).toFloat() }, o.optString("font"), o.optDouble("size", 12.0).toFloat(),
+                o.optBoolean("bold"), o.optBoolean("italic"), null, addedIndex = index)
+        }
+        paragraphs[page] = source.filter { inventory == null || it.number in sourceIndexes } + placed
         editSelection?.takeIf { it.page == page }?.let { sel -> editSelection = paragraphs[page]?.firstOrNull { it.number == sel.number } }
         editing?.takeIf { it.page == page }?.let { sel -> editing = paragraphs[page]?.firstOrNull { it.number == sel.number } }
     }
@@ -1449,7 +1470,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             addImageAt(doc, at)
             return
         }
-        val hit = paragraphs[at.page].orEmpty().firstOrNull { p -> at.x in (p.box[0] - 4)..(p.box[2] + 4) && at.y in (p.box[1] - 4)..(p.box[3] + 4) }
+        val candidates = paragraphs[at.page].orEmpty()
+        val tolerance = 20f * getApplication<Application>().resources.displayMetrics.density / doc.viewer.pixelsPerPoint(at.page).coerceAtLeast(0.01f)
+        val index = io.github.artcraftandroid.pdfcraft.ui.viewer.nearestObject(candidates.map { androidx.compose.ui.geometry.Rect(it.box[0], it.box[1], it.box[2], it.box[3]) }, androidx.compose.ui.geometry.Offset(at.x, at.y), tolerance)
+        val hit = index?.let { candidates[it] }
         editSelection = hit
         if (hit == null) selectImageAt(doc, at)
     }
@@ -1479,10 +1503,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val text = editDraft ?: para.text
         editing = null
         editDraft = null
-        if (text != para.text) runTool(doc, "text_edit", mapOf("page" to para.page + 1, "paragraph" to para.number, "text" to text))
+        if (text != para.text) runTool(doc, paragraphTool(para), paraArgs(para) + ("text" to text))
     }
 
-    private fun paraArgs(para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph) = mapOf<String, Any?>("page" to para.page + 1, "paragraph" to para.number)
+    private fun paragraphTool(para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph) = if (para.addedIndex == null) "text_edit" else "content_update"
+    private fun paraArgs(para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph) = mapOf<String, Any?>("page" to para.page + 1) +
+        if (para.addedIndex == null) mapOf("paragraph" to para.number) else mapOf("index" to para.addedIndex)
 
     /** Make [para] a list of [style] (or plain again), with any typing so far. */
     fun listParagraph(doc: OpenDocument, para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph, style: io.github.artcraftandroid.pdfcraft.ui.viewer.ListStyle) {
@@ -1491,18 +1517,47 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val text = io.github.artcraftandroid.pdfcraft.ui.viewer.ListStyle.apply(base, style)
         if (text == base) return
         if (typing) editDraft = text
-        runTool(doc, "text_edit", paraArgs(para) + ("text" to text))
+        runTool(doc, paragraphTool(para), paraArgs(para) + ("text" to text))
     }
 
     /** A formatting change to [para], applied to the page at once (with any typing so far). */
     fun styleParagraph(doc: OpenDocument, para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph, style: Map<String, Any?>) {
         val typed = editDraft?.takeIf { editing != null && it != para.text }
-        runTool(doc, "text_edit", paraArgs(para) + style + (if (typed != null) mapOf("text" to typed) else emptyMap()))
+        if (para.addedIndex != null && style.keys.any { it !in setOf("size", "font", "bold", "italic", "color", "align") }) {
+            tell(jText("This formatting isn't supported for added text.", "هذا التنسيق غير مدعوم للنص المضاف."))
+            return
+        }
+        runTool(doc, paragraphTool(para), paraArgs(para) + style + (if (typed != null) mapOf("text" to typed) else emptyMap()))
     }
 
     /** Move [para] by ([dx], [dy]) points (right and down on screen). */
     fun moveParagraph(doc: OpenDocument, para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph, dx: Float, dy: Float) {
         runTool(doc, "text_edit", paraArgs(para) + mapOf("dx" to dx.toDouble(), "dy" to -dy.toDouble()))
+    }
+
+    /** A touch transform preserves content and writes one history entry when the finger lifts. */
+    fun transformParagraph(doc: OpenDocument, para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph,
+        dx: Float, dy: Float, factor: Float, finished: () -> Unit) {
+        val geometry = if (para.addedIndex != null) {
+            mapOf("rect" to listOf(para.box[0] + dx, para.box[1] + dy,
+                para.box[0] + dx + (para.box[2] - para.box[0]) * factor,
+                para.box[1] + dy + (para.box[3] - para.box[1]) * factor).map { it.toDouble() }) +
+                (if (factor != 1f) mapOf("size" to (para.size * factor).toDouble()) else emptyMap())
+        } else if (factor == 1f) mapOf("dx" to dx.toDouble(), "dy" to -dy.toDouble()) else
+            mapOf("size" to (para.size * factor).toDouble(), "width" to ((para.box[2] - para.box[0]) * factor).toDouble())
+        runTool(doc, paragraphTool(para), paraArgs(para) + geometry, onFinished = finished)
+    }
+
+    fun transformFill(doc: OpenDocument, c: io.github.artcraftandroid.pdfcraft.core.CommentInfo,
+        dx: Float, dy: Float, factor: Float, finished: () -> Unit) {
+        val args = if (factor == 1f) mapOf("move" to listOf(dx.toDouble(), dy.toDouble())) else {
+            val rect = listOf(c.rect[0], c.rect[1], c.rect[0] + (c.rect[2] - c.rect[0]) * factor, c.rect[1] + (c.rect[3] - c.rect[1]) * factor)
+            mapOf("rect" to rect.map { it.toDouble() }) +
+                (c.fontSize?.let { mapOf("font_size" to (it * factor).toDouble()) } ?: emptyMap())
+        }
+        runTool(doc, "comment_edit", commentArgs(c) + args, onFinished = finished) {
+            selectedFill = doc.comments.firstOrNull { it.page == c.page && it.index == c.index }
+        }
     }
 
     /** Rewrap [para] to [width] points, moving it [shift] points right first (dragged from the left). */
@@ -1514,7 +1569,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteParagraph(doc: OpenDocument, para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph) {
         editSelection = null
         editing = null
-        runTool(doc, "text_edit", paraArgs(para) + ("text" to ""))
+        if (para.addedIndex != null) runTool(doc, "content_delete", paraArgs(para))
+        else runTool(doc, "text_edit", paraArgs(para) + ("text" to ""))
     }
 
     /** The page's colour just outside [para], for typing over it. */
@@ -1599,7 +1655,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         runTool(prompt.doc, "page_add_text", mapOf(
             "page" to prompt.at.page + 1, "text" to text, "at" to listOf(prompt.at.x.toDouble(), prompt.at.y.toDouble()),
             "size" to 12.0, "font" to "helvetica",
-        ))
+        )) {
+            viewModelScope.launch {
+                loadParagraphs(prompt.doc, prompt.at.page)
+                val at = prompt.at
+                editSelection = paragraphs[at.page].orEmpty().filter { it.text == text }.minByOrNull {
+                    kotlin.math.abs(it.box[0] - at.x) + kotlin.math.abs(it.box[1] - at.y)
+                }
+            }
+        }
     }
 
     /** Add image: the activity picks a picture, then [addImage] places it on the current page. */
@@ -2592,13 +2656,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Make a Fill & Sign element [factor] times bigger, about its top-left corner. */
     fun scaleFill(doc: OpenDocument, c: io.github.artcraftandroid.pdfcraft.core.CommentInfo, factor: Float) {
         if (c.rect.size < 4) return
-        val w = (c.rect[2] - c.rect[0]) * factor
-        val h = (c.rect[3] - c.rect[1]) * factor
-        if (w < 3f || h < 3f || w > 2000f || h > 2000f) return
-        val rect = listOf(c.rect[0], c.rect[1], c.rect[0] + w, c.rect[1] + h).map { it.toDouble() }
-        runTool(doc, "comment_edit", commentArgs(c) + ("rect" to rect)) {
-            selectedFill = doc.comments.firstOrNull { it.page == c.page && it.index == c.index }
-        }
+        transformFill(doc, c, 0f, 0f, factor) {}
     }
 
     /**

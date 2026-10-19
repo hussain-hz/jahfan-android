@@ -50,3 +50,7 @@ Noto Sans Arabic is embedded in the native engine, separately from the interface
 The regression test adds Arabic text to a blank PDF, saves and reopens it, searches the original Arabic string and checks rendered ink. The engine's Arabic shaping tests also pass. Replacing a pre-existing Latin-font paragraph with Arabic is a separate upstream limitation; this correction does not add that capability.
 
 The startup coroutine now runs after all ViewModel properties are initialized, avoiding an intermittent null lazy delegate when the engine is already ready.
+
+## Phone touch controls (0.1.0-beta.3)
+
+The text and signature creation flows are unchanged. After placement, the item is selected with finger-sized move and proportional resize controls. Drag its body or the four-arrow control to move it; drag the diagonal-arrow control to change size. Text size follows the scale, and signatures retain their proportions. Tap Edit text explicitly to type. Touch targets use PDF screen coordinates in both Arabic and English; movement stays on the same page, and each completed gesture is undoable. Added text uses its own engine content identity so Arabic shaping survives manipulation and save/reopen.
