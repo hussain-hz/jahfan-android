@@ -88,20 +88,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         (heapMb / 4).coerceIn(32, 192) * 1024 * 1024
     }
 
-    init {
-        viewModelScope.launch {
-            application.engine.await().onSuccess { engine = it }.onFailure { engineProblem = it.userMessage }
-            refreshRecents()
-            // the signers the reader trusts, before any signature is checked
-            // (a document opened from another app meanwhile is checked again)
-            engine?.let { eng ->
-                if (withContext(Dispatchers.IO) { trustedCerts.files().isNotEmpty() }) {
-                    runCatching { applyTrust(eng) }
-                    document?.let { loadSignatures(eng, it) }
-                }
-            }
-        }
-    }
 
     fun tell(text: String, actionLabel: String? = null, action: (() -> Unit)? = null) {
         messages.trySend(Message(text, actionLabel, action))
@@ -2647,6 +2633,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         flush()
         return out
     }
+    // Launch only after every state property and lazy delegate has been initialized.
+    init {
+        viewModelScope.launch {
+            application.engine.await().onSuccess { engine = it }.onFailure { engineProblem = it.userMessage }
+            refreshRecents()
+            // the signers the reader trusts, before any signature is checked
+            // (a document opened from another app meanwhile is checked again)
+            engine?.let { eng ->
+                if (withContext(Dispatchers.IO) { trustedCerts.files().isNotEmpty() }) {
+                    runCatching { applyTrust(eng) }
+                    document?.let { loadSignatures(eng, it) }
+                }
+            }
+        }
+    }
+
 }
 
 /** The most files Create PDF converts at once. */

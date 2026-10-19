@@ -29,7 +29,12 @@ These extensions must be checked during every future upstream upgrade. Never rep
 
 Use JDK 21, Rust 1.99.0, cargo-ndk 4.1.2, Android SDK API 37 and NDK 29.0.14206865.
 
+The Arabic document font is a required build input. Prepare the pinned source before running Cargo or Gradle:
+
 ```powershell
+git clone https://github.com/storytold/craft-fonts .build-inputs/craft-fonts
+git -C .build-inputs/craft-fonts checkout d1cf47d05e04426615fbda1d637b9ca6b1e7af35
+. ./tools/prepare-arabic-fonts.ps1 -SourceDirectory .build-inputs/craft-fonts
 cd apps/pdfcraft-android/android
 ./gradlew.bat assembleDebug testDebugUnitTest -Ppdfcraft.abis=arm64-v8a
 ```
@@ -37,3 +42,11 @@ cd apps/pdfcraft-android/android
 The installed NDK may be selected explicitly with `-Pjahfan.ndkVersion=VERSION`. The default stays pinned for reproducible CI. Preview APKs are debug-signed; a private release signing key must be configured before distribution as a production release.
 
 GitHub Actions builds a private downloadable preview artifact and runs the original mobile compatibility tests and Android unit tests. Manual device checks remain necessary for layout, language switching, reading, editing, forms, signatures and large-file performance. Passing compilation does not prove all features or performance.
+
+## Arabic PDF font correction (0.1.0-beta.2)
+
+Noto Sans Arabic is embedded in the native engine, separately from the interface font. The preparation script verifies the pinned font SHA-256 and licence; Cargo and Android builds require the font input, and the APK includes its OFL-1.1 licence. Only the Arab-script font is selected to avoid embedding unrelated large font families.
+
+The regression test adds Arabic text to a blank PDF, saves and reopens it, searches the original Arabic string and checks rendered ink. The engine's Arabic shaping tests also pass. Replacing a pre-existing Latin-font paragraph with Arabic is a separate upstream limitation; this correction does not add that capability.
+
+The startup coroutine now runs after all ViewModel properties are initialized, avoiding an intermittent null lazy delegate when the engine is already ready.

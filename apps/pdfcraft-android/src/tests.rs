@@ -442,3 +442,21 @@ fn scan_photo_detection_handles_unreadable_images() {
     let answer: Value = serde_json::from_str(&s.execute("photo_find_document".into(), json!({"path": photo}).to_string()).unwrap()).unwrap();
     assert_eq!(answer["found"], false);
 }
+
+#[test]
+fn arabic_added_text_survives_save_and_reopen() {
+    let s = MobileSession::new();
+    let doc = s.open(blank_pdf(1), None).unwrap().id;
+    let arabic = "مرحبا بكم في جحفان";
+    s.execute("page_add_text".into(), json!({"doc": doc, "page": 1, "text": arabic, "at": [72, 220], "size": 20}).to_string())
+        .expect("Jahfan must embed its Arabic document font, not only translate its interface");
+    let path = scratch().join("arabic-edited.pdf");
+    s.execute("doc_save".into(), json!({"doc": doc, "path": path}).to_string()).unwrap();
+    let reopened = s.open(path.to_string_lossy().into_owned(), None).unwrap().id;
+    assert!(!s.find_in_page(reopened, 0, arabic.into(), false, false).unwrap().is_empty());
+    let page = s.render_page(reopened, 0, 1.0, None).unwrap();
+    assert!(page.rgba.chunks_exact(4).any(|p| p[0] < 150 && p[1] < 150 && p[2] < 150), "Arabic glyphs must be visible");
+    if let Ok(sample) = std::env::var("JAHFAN_ARABIC_SAMPLE") {
+        std::fs::copy(path, sample).unwrap();
+    }
+}

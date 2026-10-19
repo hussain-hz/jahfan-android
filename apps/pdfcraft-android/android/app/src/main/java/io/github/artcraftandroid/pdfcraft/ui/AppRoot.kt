@@ -198,6 +198,7 @@ private fun LicencesScreen(vm: AppViewModel) {
     androidx.activity.compose.BackHandler { vm.showLicences = false }
     val inter = remember { runCatching { context.assets.open("licences/OFL-Inter.txt").bufferedReader().readText() }.getOrDefault("") }
     val lucide = remember { runCatching { context.assets.open("licences/LICENSE-lucide.txt").bufferedReader().readText() }.getOrDefault("") }
+    val arabicFont = remember { runCatching { context.assets.open("licences/OFL-Noto-Sans-Arabic.txt").bufferedReader().readText() }.getOrDefault("") }
     Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), { vm.showLicences = false }) }
@@ -215,12 +216,15 @@ private fun LicencesScreen(vm: AppViewModel) {
             entry("AndroidX, Jetpack Compose, Kotlin coroutines", "Apache-2.0")
             entry(jText("Lucide icons", "أيقونات Lucide"), "ISC, Lucide Contributors")
             entry(jText("Inter typeface", "خط Inter"), "SIL Open Font License 1.1, The Inter Project Authors")
+            entry(jText("Noto Sans Arabic typeface", "خط Noto Sans Arabic"), "SIL Open Font License 1.1, The Noto Project Authors")
             entry(jText("Text recognition models (ocrs)", "نماذج التعرّف على النص (ocrs)"), "CC-BY-SA-4.0, Robert Knight; trained on HierText")
             entry(jText("hayro, lopdf, boa and the engine's other Rust dependencies", "hayro وlopdf وboa ومكتبات Rust الأخرى للمحرك"), "MIT, Apache-2.0 and compatible licences; see NOTICE in the source")
             Spacer(Modifier.height(20.dp))
             Text(lucide, color = c.textSecondary, fontSize = 11.sp)
             Spacer(Modifier.height(20.dp))
             Text(inter, color = c.textSecondary, fontSize = 11.sp)
+            Spacer(Modifier.height(20.dp))
+            Text(arabicFont, color = c.textSecondary, fontSize = 11.sp)
             Spacer(Modifier.height(32.dp))
         }
     }

@@ -70,6 +70,9 @@ abstract class CargoNdkBuild : DefaultTask() {
 
     @TaskAction
     fun build() {
+        require(!System.getenv("CRAFT_FONTS_DIR").isNullOrBlank()) {
+            "Jahfan requires its Arabic PDF font. Run tools/prepare-arabic-fonts.ps1 with the pinned craft-fonts checkout before building."
+        }
         val targets = abis.get().flatMap { listOf("-t", it) }
         val out = outputDir.get().asFile.absolutePath
         // Reproducible: the library mustn't hold the paths it was built in (panic locations name
@@ -83,6 +86,8 @@ abstract class CargoNdkBuild : DefaultTask() {
         execOperations.exec {
             workingDir(workspaceDir.get())
             environment("ANDROID_NDK_HOME", ndkDir.get())
+            environment("CRAFT_FONTS_REQUIRED", "1")
+            environment("CRAFT_FONT_SCRIPTS", "Arab")
             environment("CARGO_ENCODED_RUSTFLAGS", remap.joinToString("\u001f"))
             commandLine(
                 listOf(cargo.get(), "ndk") + targets +
@@ -315,7 +320,8 @@ androidComponents {
         }
         val licences = tasks.register<PdfcraftAssets>("pdfcraftLicences$name") {
             files.from(File(assetsDir, "fonts/OFL-Inter.txt"), File(assetsDir, "icons/LICENSE-lucide.txt"))
-            targets.set(mapOf("OFL-Inter.txt" to "licences/OFL-Inter.txt", "LICENSE-lucide.txt" to "licences/LICENSE-lucide.txt"))
+            files.from(providers.environmentVariable("CRAFT_FONTS_DIR").map { File(it, "fonts/noto-sans-arabic/OFL.txt") })
+            targets.set(mapOf("OFL-Inter.txt" to "licences/OFL-Inter.txt", "LICENSE-lucide.txt" to "licences/LICENSE-lucide.txt", "OFL.txt" to "licences/OFL-Noto-Sans-Arabic.txt"))
         }
         val icons = tasks.register<LucideIconsTask>("lucideIcons$name") {
             iconsDir.set(File(assetsDir, "icons"))
