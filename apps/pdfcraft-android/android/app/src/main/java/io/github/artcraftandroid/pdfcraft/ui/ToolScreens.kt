@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -108,7 +110,7 @@ fun ToolScaffold(
             ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, "Back", onBack, iconSize = 27.dp) }
+            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), onBack, iconSize = 27.dp) }
             Spacer(Modifier.width(16.dp))
             Text(title, color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             trailing?.invoke()
@@ -172,7 +174,7 @@ fun ToolPage(
     // the keyboard covers the pill rather than lifting it, as the reference's does
     Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().background(c.navBand).navigationBarsPadding().background(c.surface)) {
         Row(Modifier.fillMaxWidth().height(io.github.artcraftandroid.pdfcraft.ui.viewer.TopBarHeight), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, "Back", onBack, iconSize = 27.dp) }
+            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), onBack, iconSize = 27.dp) }
             Spacer(Modifier.weight(1f))
             trailing?.invoke()
             Spacer(Modifier.width(8.dp))
@@ -248,13 +250,13 @@ fun CompressScreen(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
     var level by remember { mutableStateOf(1) }
     val levels = listOf(
-        "High compression" to "Smallest file, images softer",
-        "Medium compression" to "Balanced file size and quality",
-        "Low compression" to "Bigger file, images sharpest",
+        jText("High compression", "ضغط عالٍ") to jText("Smallest file, images softer", "أصغر حجم، وصور أقل وضوحًا"),
+        jText("Medium compression", "ضغط متوسط") to jText("Balanced file size and quality", "توازن بين الحجم والجودة"),
+        jText("Low compression", "ضغط منخفض") to jText("Bigger file, images sharpest", "حجم أكبر، وصور بأعلى وضوح"),
     )
-    ToolPage("Compress PDF", { vm.toolScreen = null }, "Compress", true, { vm.compress(doc, level) }) {
+    ToolPage(jText("Compress PDF", "ضغط PDF"), { vm.toolScreen = null }, jText("Compress", "ضغط"), true, { vm.compress(doc, level) }) {
         OutlinedFileCard(vm, doc)
-        Text("Compression level:", color = c.label, fontSize = 15.sp, modifier = Modifier.padding(start = 24.dp, top = 28.dp, bottom = 4.dp))
+        Text(jText("Compression level:", "مستوى الضغط:"), color = c.label, fontSize = 15.sp, modifier = Modifier.padding(start = 24.dp, top = 28.dp, bottom = 4.dp))
         levels.forEachIndexed { i, (name, desc) -> ToolChoice(level == i, name, desc) { level = i } }
     }
 }
@@ -279,7 +281,7 @@ private fun PasswordField(label: String, value: String, onValue: (String) -> Uni
             modifier = Modifier.weight(1f).then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
                 .onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label },
         )
-        BarIcon(if (visible) LucideIcons.Eye else LucideIcons.EyeOff, if (visible) "Hide password" else "Show password", { onToggle?.invoke() }, size = 44.dp)
+        BarIcon(if (visible) LucideIcons.Eye else LucideIcons.EyeOff, if (visible) jText("Hide password", "إخفاء كلمة المرور") else jText("Show password", "إظهار كلمة المرور"), { onToggle?.invoke() }, size = 44.dp)
     }
 }
 
@@ -295,19 +297,19 @@ fun ProtectScreen(vm: AppViewModel, doc: OpenDocument) {
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val bad = pw.isNotEmpty() && (pw.length !in 6..128 || pw.any { it < '!' || it > '~' })
     val mismatch = confirm.isNotEmpty() && confirm != pw
-    ToolPage("Set password", { vm.toolScreen = null }, "Set password", pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch, { vm.protect(doc, pw) },
-        trailing = { BarIcon(LucideIcons.Info, "About passwords", { info = true }) }) {
+    ToolPage(jText("Set password", "تعيين كلمة مرور"), { vm.toolScreen = null }, jText("Set password", "تعيين كلمة مرور"), pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch, { vm.protect(doc, pw) },
+        trailing = { BarIcon(LucideIcons.Info, jText("About passwords", "حول كلمات المرور"), { info = true }) }) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            Text("A protected copy of this file is saved.", color = c.label, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 24.dp))
-            PasswordField("New password *", pw, { pw = it }, visible, { visible = !visible }, bad, focus)
-            if (bad) Text("Use 6 to 128 characters: letters, numbers and symbols, no spaces.", color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-            PasswordField("Repeat the password *", confirm, { confirm = it }, visible, { visible = !visible }, mismatch)
-            if (mismatch) Text("The passwords don't match.", color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+            Text(jText("A protected copy of this file is saved.", "ستُحفظ نسخة محمية من هذا الملف."), color = c.label, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 24.dp))
+            PasswordField(jText("New password *", "كلمة المرور الجديدة *"), pw, { pw = it }, visible, { visible = !visible }, bad, focus)
+            if (bad) Text(jText("Use 6 to 128 characters: letters, numbers and symbols, no spaces.", "استخدم من ٦ إلى ١٢٨ حرفًا ورقمًا ورمزًا، دون مسافات."), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+            PasswordField(jText("Repeat the password *", "أعد إدخال كلمة المرور *"), confirm, { confirm = it }, visible, { visible = !visible }, mismatch)
+            if (mismatch) Text(jText("The passwords don't match.", "كلمتا المرور غير متطابقتين."), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
         }
     }
     if (info) {
-        PdfDialog(onDismiss = { info = false }, title = "About passwords", confirm = "OK", onConfirm = { info = false }, dismiss = null) {
-            Text("The copy is encrypted with AES-256. Keep the password safe: it can't be recovered. To remove the password later, open the copy with it and choose Remove password.", color = c.text, fontSize = 14.sp)
+        PdfDialog(onDismiss = { info = false }, title = jText("About passwords", "حول كلمات المرور"), confirm = jText("OK", "موافق"), onConfirm = { info = false }, dismiss = null) {
+            Text(jText("The copy is encrypted with AES-256. Keep the password safe: it can't be recovered. To remove the password later, open the copy with it and choose Remove password.", "تُشفّر النسخة باستخدام AES-256. احتفظ بكلمة المرور بأمان؛ لا يمكن استعادتها. لإزالة كلمة المرور لاحقًا، افتح النسخة بها واختر إزالة كلمة المرور."), color = c.text, fontSize = 14.sp)
         }
     }
 }
@@ -320,11 +322,11 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
     // the image format used last time comes first chosen
     var format by remember(tab) { mutableStateOf(if (tab == 1 && vm.lastImageFormat == "png") 1 else 0) }
     val formats = if (tab == 0) {
-        listOf("Word (docx)" to "docx", "Rich Text Format (rtf)" to "rtf", "Excel (xlsx)" to "xlsx", "PowerPoint (pptx)" to "pptx")
+        listOf("Word (docx)" to "docx", jText("Rich Text Format (rtf)", "نص منسق (rtf)") to "rtf", "Excel (xlsx)" to "xlsx", "PowerPoint (pptx)" to "pptx")
     } else {
         listOf("JPEG (jpeg)" to "jpg", "PNG (png)" to "png")
     }
-    ToolPage("Export PDF", { vm.toolScreen = null }, "Export", true, {
+    ToolPage(jText("Export PDF", "تصدير PDF"), { vm.toolScreen = null }, jText("Export", "تصدير"), true, {
         val ext = formats[format].second
         if (tab == 0) vm.exportDocument(doc, ext) else vm.exportImages(doc, ext)
     }) {
@@ -332,7 +334,7 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
         Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(c.divider))
             Row {
-                listOf("Document", "Image").forEachIndexed { i, label ->
+                listOf(jText("Document", "مستند"), jText("Image", "صورة")).forEachIndexed { i, label ->
                     Column(Modifier.clickable { tab = i }.padding(horizontal = 8.dp).width(androidx.compose.foundation.layout.IntrinsicSize.Max)) {
                         Text(label, color = if (tab == i) c.label else c.text, fontSize = 16.sp, modifier = Modifier.padding(vertical = 12.dp))
                         Box(Modifier.fillMaxWidth().height(2.dp).background(if (tab == i) c.label else Color.Transparent))
@@ -343,7 +345,7 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
         }
         Spacer(Modifier.height(12.dp))
         if (tab == 0 && doc.info.encrypted && !doc.info.allowsCopying) {
-            Text("This document's security settings don't allow exporting its text. Export images of its pages instead.", color = c.red, fontSize = 14.sp, modifier = Modifier.padding(20.dp))
+            Text(jText("This document's security settings don't allow exporting its text. Export images of its pages instead.", "لا تسمح إعدادات أمان هذا المستند بتصدير نصه. يمكنك تصدير الصفحات كصور."), color = c.red, fontSize = 14.sp, modifier = Modifier.padding(20.dp))
         }
         formats.forEachIndexed { i, (label, _) -> ToolChoice(format == i, label, null) { format = i } }
     }
@@ -360,16 +362,16 @@ fun CreateSourcesScreen(vm: AppViewModel) {
     BackHandler(onBack = back)
     Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().background(c.navBand).navigationBarsPadding().background(c.surface)) {
         Row(Modifier.fillMaxWidth().height(io.github.artcraftandroid.pdfcraft.ui.viewer.TopBarHeight), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, "Back", back, iconSize = 27.dp) }
+            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), back, iconSize = 27.dp) }
             Spacer(Modifier.width(4.dp))
-            Text("Choose files to make a PDF", color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(jText("Choose files to make a PDF", "اختر ملفات لإنشاء PDF"), color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(8.dp))
-        SourceRow(LucideIcons.Images, "Photos") { vm.toolScreen = null; vm.pickPhotosToPdf() }
-        SourceRow(LucideIcons.FolderOpen, "Browse files") { vm.toolScreen = null; vm.pickFiles(FilePickKind.Create) }
-        Text("Or make a new one", color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 6.dp))
+        SourceRow(LucideIcons.Images, jText("Photos", "الصور")) { vm.toolScreen = null; vm.pickPhotosToPdf() }
+        SourceRow(LucideIcons.FolderOpen, jText("Browse files", "استعراض الملفات")) { vm.toolScreen = null; vm.pickFiles(FilePickKind.Create) }
+        Text(jText("Or make a new one", "أو أنشئ ملفًا جديدًا"), color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 6.dp))
         Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(1.dp).background(c.divider))
-        SourceRow(LucideIcons.Camera, "Scan a document") { vm.toolScreen = null; vm.startScan() }
+        SourceRow(LucideIcons.Camera, jText("Scan a document", "مسح مستند")) { vm.toolScreen = null; vm.startScan() }
     }
 }
 
@@ -422,19 +424,19 @@ fun CombineScreen(vm: AppViewModel) {
                 .drawBehind { drawRect(c.divider, Offset(0f, size.height - 1.dp.toPx()), Size(size.width, 1.dp.toPx())) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, "Back", back, iconSize = 27.dp) }
+            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), back, iconSize = 27.dp) }
             Spacer(Modifier.width(4.dp))
             Text(
-                if (files.size > 1) "${files.size} files" else "Combine files",
+                if (files.size > 1) jText("${files.size} files", "عدد الملفات: ${files.size}") else jText("Combine files", "دمج الملفات"),
                 color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f),
             )
             Box(
                 Modifier.padding(end = 20.dp).height(36.dp).clip(RoundedCornerShape(18.dp)).border(2.dp, c.label, RoundedCornerShape(18.dp))
                     .clickable { vm.pickFiles(FilePickKind.Combine) }.padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("Add files", color = c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+            ) { Text(jText("Add files", "إضافة ملفات"), color = c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
         }
-        if (files.size > 12) Text("Remove some files: up to 12 can be combined.", color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+        if (files.size > 12) Text(jText("Remove some files: up to 12 can be combined.", "أزل بعض الملفات؛ يمكن دمج ١٢ ملفًا كحد أقصى."), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp)) {
             itemsIndexed(files, key = { _, f -> f.uri.toString() }) { i, f ->
                 Row(
@@ -462,14 +464,14 @@ fun CombineScreen(vm: AppViewModel) {
                                     dragOffset -= (to - from) * rowPx
                                 }
                             }
-                        }.semantics { contentDescription = "Drag to reorder" },
+                        }.semantics { contentDescription = jText("Drag to reorder", "اسحب لإعادة الترتيب") },
                         contentAlignment = Alignment.Center,
                     ) { Icon(LucideIcons.GripVertical, null, tint = c.icon, modifier = Modifier.size(20.dp)) }
                     Column(Modifier.weight(1f)) {
                         Text(f.name.substringBeforeLast('.'), color = c.label, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(listOfNotNull(f.name.substringAfterLast('.', "").uppercase(), f.size?.let { formatSize(it) }).joinToString(" • "), color = c.text, fontSize = 14.sp)
                     }
-                    BarIcon(LucideIcons.CircleMinus, "Remove ${f.name}", { files.remove(f); vm.tell("File removed") })
+                    BarIcon(LucideIcons.CircleMinus, jText("Remove ${f.name}", "إزالة ${f.name}"), { files.remove(f); vm.tell(jText("File removed", "تمت إزالة الملف")) })
                 }
             }
         }
@@ -477,15 +479,15 @@ fun CombineScreen(vm: AppViewModel) {
             Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp).height(42.dp).clip(RoundedCornerShape(21.dp))
                 .background(if (ok) c.button else c.pressed).clickable(enabled = ok) { naming = true },
             contentAlignment = Alignment.Center,
-        ) { Text("Combine as PDF", color = if (ok) Color.White else c.textSecondary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
+        ) { Text(jText("Combine as PDF", "دمج في PDF"), color = if (ok) Color.White else c.textSecondary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
         if (naming) {
             var name by remember { mutableStateOf("Combine " + java.text.DateFormat.getDateInstance(java.text.DateFormat.LONG).format(java.util.Date())) }
             val focus = remember { androidx.compose.ui.focus.FocusRequester() }
             PdfDialog(
-                onDismiss = { naming = false }, title = "Name the combined file", confirm = "Save",
-                onConfirm = { naming = false; vm.combine(name.trim().ifEmpty { "Combine" }) },
+                onDismiss = { naming = false }, title = jText("Name the combined file", "اسم الملف المدمج"), confirm = jText("Save", "حفظ"),
+                onConfirm = { naming = false; vm.combine(name.trim().ifEmpty { jText("Combine", "دمج") }) },
                 confirmEnabled = name.isNotBlank(),
-            ) { PdfField(name, { name = it }, "File name", focus = focus) }
+            ) { PdfField(name, { name = it }, jText("File name", "اسم الملف"), focus = focus) }
         }
     }
 }
@@ -519,11 +521,11 @@ fun CropScreen(vm: AppViewModel, doc: OpenDocument) {
         bitmap = runCatching { withContext(eng.thumbnails) { eng.session.renderPage(doc.id, page.toUInt(), scale, null).toBitmap().asImageBitmap() } }.getOrNull()
     }
     val changed = !(rect[0] == 0f && rect[1] == 0f && rect[2] == 1f && rect[3] == 1f)
-    ToolScaffold(if (allPages) "All pages" else "Current page", { vm.toolScreen = null }, null, false, {},
+    ToolScaffold(if (allPages) jText("All pages", "كل الصفحات") else jText("Current page", "الصفحة الحالية"), { vm.toolScreen = null }, null, false, {},
         viewerBands = true,
         trailing = {
             Text(
-                "Save", color = if (changed) c.label else c.textSecondary.copy(alpha = 0.5f), fontSize = 17.sp,
+                jText("Save", "حفظ"), color = if (changed) c.label else c.textSecondary.copy(alpha = 0.5f), fontSize = 17.sp,
                 modifier = Modifier.clickable(enabled = changed) {
                     val info = p ?: return@clickable
                     vm.crop(doc, if (allPages) null else page, floatArrayOf(rect[0] * info.width, rect[1] * info.height, rect[2] * info.width, rect[3] * info.height))
@@ -626,19 +628,19 @@ fun CropScreen(vm: AppViewModel, doc: OpenDocument) {
         }
         // the page in a grey pill (with arrows to step through the pages when cropping them all)
         Row(Modifier.fillMaxWidth().background(c.desk).height(88.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            if (allPages) BarIcon(LucideIcons.ChevronLeft, "Previous page", { page = (page - 1).coerceAtLeast(0) }, enabled = page > 0)
+            if (allPages) BarIcon(LucideIcons.ChevronLeft, jText("Previous page", "الصفحة السابقة"), { page = (page - 1).coerceAtLeast(0) }, enabled = page > 0)
             Box(
                 Modifier.widthIn(min = 102.dp).height(32.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFD1D1D1)).padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("Page ${page + 1}", color = Color(0xFF2C2C2C), fontSize = 15.sp) }
-            if (allPages) BarIcon(LucideIcons.ChevronRight, "Next page", { page = (page + 1).coerceAtMost(doc.pageCount - 1) }, enabled = page < doc.pageCount - 1)
+            ) { Text(jText("Page ${page + 1}", "الصفحة ${page + 1}"), color = Color(0xFF2C2C2C), fontSize = 15.sp) }
+            if (allPages) BarIcon(LucideIcons.ChevronRight, jText("Next page", "الصفحة التالية"), { page = (page + 1).coerceAtMost(doc.pageCount - 1) }, enabled = page < doc.pageCount - 1)
         }
         Row(Modifier.fillMaxWidth().height(54.dp).background(c.surface).padding(start = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             PdfSwitch(allPages, { allPages = it })
             Spacer(Modifier.width(16.dp))
-            Text("All pages", color = c.label, fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Text(jText("All pages", "كل الصفحات"), color = c.label, fontSize = 16.sp, modifier = Modifier.weight(1f))
             Text(
-                "Reset", color = if (changed) c.label else c.textSecondary.copy(alpha = 0.5f), fontSize = 16.sp,
+                jText("Reset", "إعادة ضبط"), color = if (changed) c.label else c.textSecondary.copy(alpha = 0.5f), fontSize = 16.sp,
                 modifier = Modifier.clickable(enabled = changed) { rect = floatArrayOf(0f, 0f, 1f, 1f) }.padding(horizontal = 12.dp, vertical = 12.dp),
             )
         }
@@ -658,12 +660,14 @@ data class ScanPage(val file: java.io.File, val thumb: ImageBitmap, val corners:
 }
 
 /** The looks a scan can have, and how the engine's camera clean-up gives each. */
-enum class ScanFilter(val label: String, val mode: String, val level: Int) {
-    Original("Original", "original", 0),
-    AutoColor("Auto colour", "colour", 50),
-    Grayscale("Grayscale", "greyscale", 40),
-    Whiteboard("Whiteboard", "colour", 85),
-    LightText("Light text", "bw", 60),
+enum class ScanFilter(private val labelText: () -> String, val mode: String, val level: Int) {
+    Original({ jText("Original", "الأصل") }, "original", 0),
+    AutoColor({ jText("Auto colour", "ألوان تلقائية") }, "colour", 50),
+    Grayscale({ jText("Grayscale", "تدرّج رمادي") }, "greyscale", 40),
+    Whiteboard({ jText("Whiteboard", "سبورة بيضاء") }, "colour", 85),
+    LightText({ jText("Light text", "نص فاتح") }, "bw", 60);
+    val label: String get() = labelText()
+
 }
 
 /** Scan: pages taken with the camera, reviewed (name, retake, crop, delete, look), then saved as a PDF. */
@@ -688,14 +692,14 @@ fun ScanScreen(vm: AppViewModel) {
         return
     }
     ToolScaffold(
-        if (pages.isEmpty()) "Scan" else "Page ${current.coerceAtMost(pages.lastIndex) + 1} of ${pages.size}",
+        if (pages.isEmpty()) jText("Scan", "مسح ضوئي") else jText("Page ${current.coerceAtMost(pages.lastIndex) + 1} of ${pages.size}", "الصفحة ${current.coerceAtMost(pages.lastIndex) + 1} من ${pages.size}"),
         { vm.discardScan() },
-        "Save PDF", pages.isNotEmpty(), { vm.saveScan(filter) },
+        jText("Save PDF", "حفظ PDF"), pages.isNotEmpty(), { vm.saveScan(filter) },
     ) {
         // the new file's name, changeable before it's saved (not when the pages go into an open document)
         if (vm.insertScanAt == null && vm.scanName.isNotBlank()) {
             Row(
-                Modifier.fillMaxWidth().clickable { naming = true }.padding(horizontal = 16.dp, vertical = 10.dp).semantics { contentDescription = "File name: ${vm.scanName}. Change" },
+                Modifier.fillMaxWidth().clickable { naming = true }.padding(horizontal = 16.dp, vertical = 10.dp).semantics { contentDescription = jText("File name: ${vm.scanName}. Change", "اسم الملف: ${vm.scanName}. تغيير") },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(LucideIcons.FileText, null, tint = c.icon, modifier = Modifier.size(20.dp))
@@ -710,14 +714,14 @@ fun ScanScreen(vm: AppViewModel) {
             if (page != null) {
                 ScanPhoto(page.thumb, page.corners, Modifier.fillMaxSize())
             } else {
-                Text("Take a photo of each page", color = c.textSecondary)
+                Text(jText("Take a photo of each page", "التقط صورة لكل صفحة"), color = c.textSecondary)
             }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             pages.forEachIndexed { i, p ->
-                Image(p.thumb, "Page ${i + 1}", modifier = Modifier.size(56.dp, 72.dp).clip(RoundedCornerShape(4.dp)).border(2.dp, if (i == current) c.accent else Color.Transparent, RoundedCornerShape(4.dp)).clickable { current = i }, contentScale = ContentScale.Crop)
+                Image(p.thumb, jText("Page ${i + 1}", "الصفحة ${i + 1}"), modifier = Modifier.size(56.dp, 72.dp).clip(RoundedCornerShape(4.dp)).border(2.dp, if (i == current) c.accent else Color.Transparent, RoundedCornerShape(4.dp)).clickable { current = i }, contentScale = ContentScale.Crop)
             }
-            Box(Modifier.size(56.dp, 72.dp).clip(RoundedCornerShape(4.dp)).background(c.surfaceRaised).clickable { vm.takeScanPhoto() }.semantics { contentDescription = "Add page" }, contentAlignment = Alignment.Center) {
+            Box(Modifier.size(56.dp, 72.dp).clip(RoundedCornerShape(4.dp)).background(c.surfaceRaised).clickable { vm.takeScanPhoto() }.semantics { contentDescription = jText("Add page", "إضافة صفحة") }, contentAlignment = Alignment.Center) {
                 Icon(LucideIcons.Plus, null, tint = c.icon)
             }
         }
@@ -730,18 +734,18 @@ fun ScanScreen(vm: AppViewModel) {
             }
         }
         Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            TextButton(onClick = { vm.retakeScan(current) }, enabled = pages.isNotEmpty()) { Text("Retake", color = c.accent) }
-            TextButton(onClick = { cropping = pages.getOrNull(current.coerceAtMost(pages.lastIndex))?.file }, enabled = pages.isNotEmpty()) { Text("Crop", color = c.accent) }
-            TextButton(onClick = { if (pages.isNotEmpty()) { pages.removeAt(current.coerceAtMost(pages.lastIndex)); current = (current - 1).coerceAtLeast(0) } }, enabled = pages.isNotEmpty()) { Text("Delete", color = c.accent) }
+            TextButton(onClick = { vm.retakeScan(current) }, enabled = pages.isNotEmpty()) { Text(jText("Retake", "إعادة الالتقاط"), color = c.accent) }
+            TextButton(onClick = { cropping = pages.getOrNull(current.coerceAtMost(pages.lastIndex))?.file }, enabled = pages.isNotEmpty()) { Text(jText("Crop", "اقتصاص"), color = c.accent) }
+            TextButton(onClick = { if (pages.isNotEmpty()) { pages.removeAt(current.coerceAtMost(pages.lastIndex)); current = (current - 1).coerceAtLeast(0) } }, enabled = pages.isNotEmpty()) { Text(jText("Delete", "حذف"), color = c.accent) }
         }
     }
     if (naming) {
         var name by remember { mutableStateOf(vm.scanName) }
         PdfDialog(
-            onDismiss = { naming = false }, title = "File name",
-            confirm = "OK", confirmEnabled = name.isNotBlank(), onConfirm = { vm.scanName = name.trim(); naming = false },
+            onDismiss = { naming = false }, title = jText("File name", "اسم الملف"),
+            confirm = jText("OK", "موافق"), confirmEnabled = name.isNotBlank(), onConfirm = { vm.scanName = name.trim(); naming = false },
         ) {
-            PdfField(name, { name = it }, "File name")
+            PdfField(name, { name = it }, jText("File name", "اسم الملف"))
         }
     }
 }
@@ -754,13 +758,13 @@ fun ScanScreen(vm: AppViewModel) {
 private fun ScanCrop(page: ScanPage, onDone: (FloatArray) -> Unit, onCancel: () -> Unit) {
     val c = pdfColors
     var corners by remember(page.file) { mutableStateOf(page.corners) }
-    ToolScaffold("Crop", onCancel, "Done", true, { onDone(corners) }) {
+    ToolScaffold(jText("Crop", "اقتصاص"), onCancel, jText("Done", "تم"), true, { onDone(corners) }) {
         Box(Modifier.weight(1f).fillMaxWidth().background(c.desk)) {
             ScanPhoto(page.thumb, corners, Modifier.fillMaxSize(), onMove = { corners = it })
         }
         Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            TextButton(onClick = { page.found?.let { corners = it } }, enabled = page.found != null) { Text("Auto-detect", color = if (page.found != null) c.accent else c.textSecondary) }
-            TextButton(onClick = { corners = ScanPage.WHOLE }) { Text("No crop", color = c.accent) }
+            TextButton(onClick = { page.found?.let { corners = it } }, enabled = page.found != null) { Text(jText("Auto-detect", "اكتشاف تلقائي"), color = if (page.found != null) c.accent else c.textSecondary) }
+            TextButton(onClick = { corners = ScanPage.WHOLE }) { Text(jText("No crop", "بلا اقتصاص"), color = c.accent) }
         }
     }
 }

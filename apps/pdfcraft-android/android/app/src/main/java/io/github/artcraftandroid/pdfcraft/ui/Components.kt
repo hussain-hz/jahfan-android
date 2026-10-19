@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -185,7 +187,7 @@ fun PdfSheet(
                     .fillMaxSize()
                     .background(if (dim) pdfColors.scrim else Color.Transparent)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
-                    .semantics { contentDescription = "Close sheet" },
+                    .semantics { contentDescription = jText("Close sheet", "إغلاق اللوحة") },
             )
         }
         val density = LocalDensity.current
@@ -289,7 +291,7 @@ fun SheetRow(
 @Composable
 fun SheetBackHeader(title: String, onBack: () -> Unit, trailing: (@Composable RowScope.() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().height(56.dp).padding(start = 4.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        BarIcon(LucideIcons.ChevronLeft, "Back", onBack)
+        BarIcon(LucideIcons.ChevronLeft, jText("Back", "رجوع"), onBack)
         Spacer(Modifier.width(6.dp))
         Text(title, color = pdfColors.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (trailing != null) trailing()
@@ -384,7 +386,7 @@ fun PdfDialog(
     confirm: String?,
     onConfirm: () -> Unit = {},
     confirmEnabled: Boolean = true,
-    dismiss: String? = "Cancel",
+    dismiss: String? = jText("Cancel", "إلغاء"),
     onDismissButton: () -> Unit = onDismiss,
     destructive: Boolean = false,
     /** A choice list's card: lighter grey, narrower, no padding of its own. */
@@ -469,7 +471,7 @@ fun PdfField(
                     .onFocusChanged { focused = it.isFocused }.semantics { contentDescription = placeholder },
             )
         }
-        if (password) BarIcon(if (visible) LucideIcons.Eye else LucideIcons.EyeOff, if (visible) "Hide password" else "Show password", { visible = !visible }, size = 48.dp)
+        if (password) BarIcon(if (visible) LucideIcons.Eye else LucideIcons.EyeOff, if (visible) jText("Hide password", "إخفاء كلمة المرور") else jText("Show password", "إظهار كلمة المرور"), { visible = !visible }, size = 48.dp)
         else Spacer(Modifier.width(12.dp))
     }
 }
@@ -492,21 +494,27 @@ fun WordWrapLabel(
     minSize: androidx.compose.ui.unit.TextUnit = 7.sp,
 ) {
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    // Arabic words must stay connected under narrow toolbar icons. Word joiners are
+    // invisible and preserve shaping while allowing line breaks at ordinary spaces.
+    val arabic = text.any { it in '\u0600'..'\u06ff' }
+    val displayText = remember(text, arabic) {
+        if (arabic) text.split(' ').joinToString(" ") { word -> word.toList().joinToString("\u2060") } else text
+    }
     val style = androidx.compose.material3.LocalTextStyle.current.merge(
         androidx.compose.ui.text.TextStyle(
-            color = color, fontSize = size, lineHeight = lineHeight, letterSpacing = letterSpacing,
+            color = color, fontSize = size, lineHeight = lineHeight, letterSpacing = if (arabic) 0.sp else letterSpacing,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         ),
     )
     androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
         val room = constraints.maxWidth
-        val scale = remember(text, style, room) {
-            val widest = text.split(' ').filter { it.isNotBlank() }
+        val scale = remember(displayText, style, room) {
+            val widest = displayText.split(' ').filter { it.isNotBlank() }
                 .maxOfOrNull { measurer.measure(it, style, softWrap = false, maxLines = 1).size.width } ?: 0
             // a little under the exact ratio, so the narrowed word doesn't land a pixel too wide
             if (room == androidx.compose.ui.unit.Constraints.Infinity || widest <= room || widest == 0) 1f
             else (room.toFloat() / widest * 0.97f).coerceAtLeast(minSize.value / size.value)
         }
-        Text(text, style = style.copy(fontSize = size * scale, lineHeight = lineHeight * scale), maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+        Text(displayText, style = style.copy(fontSize = size * scale, lineHeight = lineHeight * scale), maxLines = maxLines, overflow = TextOverflow.Ellipsis)
     }
 }

@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -122,7 +124,7 @@ fun BoxScope.Scrubber(doc: OpenDocument, visible: Boolean, top: Dp, bottom: Dp, 
                             onDrag()
                         }
                     }
-                    .semantics { contentDescription = "Page ${v.currentPage + 1} of ${doc.pageCount}" },
+                    .semantics { contentDescription = jText("Page ${v.currentPage + 1} of ${doc.pageCount}", "الصفحة ${v.currentPage + 1} من ${doc.pageCount}") },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, color = c.text, fontSize = 15.sp, modifier = Modifier.padding(start = 12.dp, end = 10.dp))
@@ -151,19 +153,19 @@ fun GoToPageDialog(doc: OpenDocument, onDismiss: () -> Unit) {
         doc.viewer.goToPage(n - 1)
         onDismiss()
     }
-    io.github.artcraftandroid.pdfcraft.ui.PdfDialog(onDismiss = onDismiss, title = "Go to page", confirm = "OK", onConfirm = ::go, confirmEnabled = text.isNotEmpty()) {
+    io.github.artcraftandroid.pdfcraft.ui.PdfDialog(onDismiss = onDismiss, title = jText("Go to page", "الانتقال إلى صفحة"), confirm = jText("OK", "موافق"), onConfirm = ::go, confirmEnabled = text.isNotEmpty()) {
             Column {
                 Text("1 - ${doc.pageCount}", color = c.textSecondary, fontSize = 14.sp)
                 Spacer(Modifier.height(10.dp))
                 io.github.artcraftandroid.pdfcraft.ui.PdfField(
-                    text, { text = it.filter(Char::isDigit).take(6); wrong = false }, "Enter page number", error = wrong, focus = focus,
+                    text, { text = it.filter(Char::isDigit).take(6); wrong = false }, jText("Enter page number", "أدخل رقم الصفحة"), error = wrong, focus = focus,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = androidx.compose.ui.text.input.ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = { go() }),
                 )
                 if (previous != null) {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "Back to page ${previous + 1}",
+                        jText("Back to page ${previous + 1}", "الرجوع إلى الصفحة ${previous + 1}"),
                         color = c.accent,
                         modifier = Modifier.clickable {
                             doc.viewer.goToPage(previous)
@@ -211,20 +213,20 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
             .background(c.menu, RoundedCornerShape(4.dp)),
     ) {
         Row(Modifier.fillMaxWidth().height(61.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            MenuIcon(LucideIcons.MessageSquarePlus, "Add comment", allowed) { vm.notePrompt = NotePrompt(doc, null, sel) }
-            MenuIcon(LucideIcons.Highlighter, "Highlight", allowed) { markup(TextMarkup.Highlight) }
-            MenuIcon(LucideIcons.Underline, "Underline", allowed) { markup(TextMarkup.Underline) }
-            MenuIcon(LucideIcons.Strikethrough, "Strikethrough", allowed) { markup(TextMarkup.Strikethrough) }
+            MenuIcon(LucideIcons.MessageSquarePlus, jText("Add comment", "إضافة تعليق"), allowed) { vm.notePrompt = NotePrompt(doc, null, sel) }
+            MenuIcon(LucideIcons.Highlighter, jText("Highlight", "تمييز"), allowed) { markup(TextMarkup.Highlight) }
+            MenuIcon(LucideIcons.Underline, jText("Underline", "تسطير"), allowed) { markup(TextMarkup.Underline) }
+            MenuIcon(LucideIcons.Strikethrough, jText("Strikethrough", "شطب"), allowed) { markup(TextMarkup.Strikethrough) }
         }
         // an inset divider, then the rows with 8 dp above and below, as the reference's menu
         Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(1.dp).background(c.divider))
         Spacer(Modifier.height(8.dp))
-        if (doc.writable || doc.source == null) MenuRow(LucideIcons.FilePenLine, "Edit text") {
+        if (doc.writable || doc.source == null) MenuRow(LucideIcons.FilePenLine, jText("Edit text", "تحرير النص")) {
             doc.selection.clear()
             vm.enterTool(doc, ViewerTool.Edit)
         }
-        if (doc.info.allowsCopying) MenuRow(LucideIcons.Copy, "Copy text") { vm.copySelection(doc) }
-        MenuRow(LucideIcons.Volume2, "Read aloud") {
+        if (doc.info.allowsCopying) MenuRow(LucideIcons.Copy, jText("Copy text", "نسخ النص")) { vm.copySelection(doc) }
+        MenuRow(LucideIcons.Volume2, jText("Read aloud", "القراءة بصوت عالٍ")) {
             vm.startReadAloud(doc, fromSelection = true)
             doc.selection.clear()
         }
@@ -258,7 +260,7 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 fun NoteSheet(vm: AppViewModel, prompt: NotePrompt) {
     val at = prompt.at
     InlineNoteBar(
-        hint = "Write a note",
+        hint = jText("Write a note", "اكتب ملاحظة"),
         onDismiss = { vm.notePrompt = null },
         onPost = { vm.postNote(prompt, it) },
         onVoice = if (at != null && prompt.selection == null) ({ vm.notePrompt = null; vm.startVoice(prompt.doc, at) }) else null,
@@ -268,7 +270,7 @@ fun NoteSheet(vm: AppViewModel, prompt: NotePrompt) {
 /** A reply being typed: the same bar, under the comment it answers. */
 @Composable
 fun ReplySheet(vm: AppViewModel, prompt: ReplyPrompt) {
-    InlineNoteBar(hint = "Write a reply", onDismiss = { vm.replyPrompt = null }, onPost = { vm.postReply(prompt, it) }, onVoice = null)
+    InlineNoteBar(hint = jText("Write a reply", "اكتب ردًا"), onDismiss = { vm.replyPrompt = null }, onPost = { vm.postReply(prompt, it) }, onVoice = null)
 }
 
 /**
@@ -303,11 +305,11 @@ private fun InlineNoteBar(hint: String, onDismiss: () -> Unit, onPost: (String) 
                 },
             )
             Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (onVoice != null) BarIcon(LucideIcons.Mic, "Record voice comment", { onVoice() }, enabled = text.isBlank())
+                if (onVoice != null) BarIcon(LucideIcons.Mic, jText("Record voice comment", "تسجيل تعليق صوتي"), { onVoice() }, enabled = text.isBlank())
                 Spacer(Modifier.weight(1f))
                 Box(Modifier.width(1.dp).height(21.dp).background(c.divider))
                 Spacer(Modifier.width(4.dp))
-                BarIcon(LucideIcons.Send, "Post", { onPost(text) }, enabled = text.isNotBlank(), tint = c.toolAccent)
+                BarIcon(LucideIcons.Send, jText("Post", "نشر"), { onPost(text) }, enabled = text.isNotBlank(), tint = c.toolAccent)
             }
         }
     }
@@ -358,7 +360,7 @@ fun BoxScope.TextEntry(vm: AppViewModel, prompt: TextPrompt, onDone: (TextPrompt
                 .focusRequester(focus),
             decorationBox = { inner ->
                 Box {
-                    if (text.isEmpty()) Text("Add text", color = color.copy(alpha = 0.5f), fontSize = sizeSp)
+                    if (text.isEmpty()) Text(jText("Add text", "إضافة نص"), color = color.copy(alpha = 0.5f), fontSize = sizeSp)
                     inner()
                 }
             },
@@ -406,7 +408,7 @@ fun BoxScope.SelectionHandles(doc: OpenDocument, sel: Selection) {
                         doc.viewer.screenToPage(target, nearest = true)?.let { doc.selection.dragHandle(start, it) }
                     }
                 }
-                .semantics { contentDescription = if (start) "Selection start" else "Selection end" },
+                .semantics { contentDescription = if (start) jText("Selection start", "بداية التحديد") else jText("Selection end", "نهاية التحديد") },
         ) {
             androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
                 val rad = this.size.width / 2f
@@ -453,7 +455,7 @@ fun BoxScope.HorizontalScrubber(doc: OpenDocument, visible: Boolean, bottom: Dp,
                             onDrag()
                         }
                     }
-                    .semantics { contentDescription = "Page ${v.currentPage + 1} of ${doc.pageCount}" },
+                    .semantics { contentDescription = jText("Page ${v.currentPage + 1} of ${doc.pageCount}", "الصفحة ${v.currentPage + 1} من ${doc.pageCount}") },
                 contentAlignment = Alignment.Center,
             ) {
                 Text("${v.currentPage + 1}", color = c.text, fontSize = 15.sp)

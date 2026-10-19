@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.app.ActivityManager
 import io.github.artcraftandroid.pdfcraft.ui.home.FileTool
 import io.github.artcraftandroid.pdfcraft.ui.viewer.FillElement
@@ -115,7 +117,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         settingsOpen = false
         showLicences = false
         viewModelScope.launch {
-            val eng = engine ?: application.engine.await().getOrNull() ?: run { tell(engineProblem ?: "PdfCraft couldn't start."); return@launch }
+            val eng = engine ?: application.engine.await().getOrNull() ?: run { tell(engineProblem ?: jText("Jahfan couldn't start.", "تعذّر بدء جحفان.")); return@launch }
             opening = true
             try {
                 val file = withContext(Dispatchers.IO) {
@@ -127,7 +129,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // moved or deleted since it was opened: it leaves Recent
                 withContext(Dispatchers.IO) { recents.remove(setOf(uri.toString())) }
                 refreshRecents()
-                tell("This file has been moved or deleted.")
+                tell(jText("This file has been moved or deleted.", "نُقل هذا الملف أو حُذف."))
             } catch (e: SecurityException) {
                 // A file another app lent for one visit (Files, Downloads: "Open with"): Android
                 // takes that access back later, so Recent can't read it again. PdfCraft's own copy
@@ -136,9 +138,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val copy = withContext(Dispatchers.IO) { files.existingCopy(uri) }
                 if (copy != null) {
                     openFile(eng, uri, copy, password)
-                    tell("Opened PdfCraft's copy. To change the original, open it again from the app it's in.")
+                    tell(jText("Opened Jahfan's copy. To change the original, open it again from the app it's in.", "تم فتح نسخة جحفان. لتعديل الأصل، افتحه مجددًا من التطبيق الموجود فيه."))
                 } else {
-                    tell("PdfCraft can't open this file any more. Open it again from the app it's in, or with Open file.")
+                    tell(jText("Jahfan can't open this file any more. Open it again from the app it's in, or with Open file.", "تعذّر على جحفان فتح هذا الملف. افتحه مجددًا من التطبيق الموجود فيه أو باستخدام «فتح ملف»."))
                 }
             } catch (e: Exception) {
                 tell(e.userMessage)
@@ -369,13 +371,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun undo(doc: OpenDocument) {
         doc.localUndo?.let { it.undo(); return }
         val label = doc.info.undo ?: return
-        runTool(doc, "edit_undo") { tell("$label undone") }
+        runTool(doc, "edit_undo") { tell(jText("$label undone", "تم التراجع عن $label")) }
     }
 
     fun redo(doc: OpenDocument) {
         doc.localUndo?.let { it.redo(); return }
         val label = doc.info.redo ?: return
-        runTool(doc, "edit_redo") { tell("$label redone") }
+        runTool(doc, "edit_redo") { tell(jText("$label redone", "تمت إعادة $label")) }
     }
 
     /** Switch the viewer to [tool], unless the document forbids what it does. */
@@ -398,13 +400,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             ViewerTool.None -> false
         }
         if (blocked) {
-            tell(info.readOnlyReason ?: "This tool is not available due to the document's security settings.")
+            tell(info.readOnlyReason ?: jText("This tool is not available due to the document's security settings.", "هذه الأداة غير متاحة بسبب إعدادات أمان المستند."))
             return
         }
         if (ctl.tool != ViewerTool.None) leaveTool(doc)
         doc.selection.clear()
         ctl.switchTool(tool)
-        if (tool == ViewerTool.Draw && toolPrefs.snapToShape && toolPrefs.takeSnapHint()) tell("Snap to shape on")
+        if (tool == ViewerTool.Draw && toolPrefs.snapToShape && toolPrefs.takeSnapHint()) tell(jText("Snap to shape on", "تحويل الرسم إلى شكل: مفعّل"))
         // the first time the reader comments without a name, ask for one (once)
         if (tool in setOf(ViewerTool.Comment, ViewerTool.Markup, ViewerTool.Draw, ViewerTool.Text) && toolPrefs.author.isBlank() && !toolPrefs.authorAsked) {
             toolPrefs.authorAsked = true
@@ -481,9 +483,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     runCatching { withContext(eng.commands) { eng.session.glyphCount(doc.id, p.toUInt()) } }.getOrDefault(1u) == 0u
                 }
                 if (textless) {
-                    tell("This file's words are pictures, so they can't be searched yet.", "Recognize text") { recognizeText(doc) }
+                    tell(jText("This file's words are pictures, so they can't be searched yet.", "نصوص هذا الملف صور؛ لذا لا يمكن البحث فيها بعد."), jText("Recognize text", "التعرّف على النص")) { recognizeText(doc) }
                 } else {
-                    tell("No matches for “${doc.search.query}”")
+                    tell(jText("No matches for “${doc.search.query}”", "لا توجد نتائج تطابق «${doc.search.query}»"))
                 }
             }
         }
@@ -497,7 +499,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val send = Intent(Intent.ACTION_SEND)
                 .setType("application/pdf")
                 .putExtra(Intent.EXTRA_STREAM, uri)
-                .putExtra(Intent.EXTRA_SUBJECT, "Emailing ${doc.title}")
+                .putExtra(Intent.EXTRA_SUBJECT, jText("Emailing ${doc.title}", "إرسال ${doc.title} بالبريد الإلكتروني"))
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             intents.trySend(Intent.createChooser(send, null))
         }
@@ -532,7 +534,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Print [doc] through Android's print framework. */
     fun print(doc: OpenDocument) {
         if (!doc.info.allowsPrinting) {
-            tell("Print unavailable: the author has disabled printing for this document.")
+            tell(jText("Print unavailable: the author has disabled printing for this document.", "الطباعة غير متاحة؛ عطّل المؤلف طباعة هذا المستند."))
             return
         }
         viewModelScope.launch {
@@ -585,7 +587,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (doc.info.dirty) engine?.tool("doc_save", mapOf("doc" to doc.id))
                 withContext(Dispatchers.IO) { files.writeBack(doc.file, target) }
                 refresh(doc)
-                tell("Saved a copy")
+                tell(jText("Saved a copy", "تم حفظ نسخة"))
                 then?.invoke()
             } catch (e: Exception) {
                 tell(e.userMessage)
@@ -623,7 +625,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startReadAloud(doc: OpenDocument, fromSelection: Boolean = false) {
         if (doc.info.encrypted) {
-            tell("Read aloud isn't available for password-protected documents.")
+            tell(jText("Read aloud isn't available for password-protected documents.", "القراءة بصوت عالٍ غير متاحة للمستندات المحمية بكلمة مرور."))
             return
         }
         readAloud?.stop()
@@ -638,7 +640,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val saved = ReadAloud.savedPosition(getApplication(), key)?.takeIf { it.first in 0 until doc.pageCount }
         if (saved != null) {
             readAloud = ReadAloud(getApplication(), eng, doc, viewModelScope, saved.first, { readAloud = null }, key, resumeAt = saved.second to saved.third)
-            tell("Reading on from where you stopped", "Start over") {
+            tell(jText("Reading on from where you stopped", "متابعة القراءة من حيث توقفت"), jText("Start over", "البدء من جديد")) {
                 ReadAloud.forgetPosition(getApplication(), key)
                 readAloud?.stop()
                 ReadAloud.forgetPosition(getApplication(), key)
@@ -704,7 +706,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteAllBookmarks(doc: OpenDocument) {
         bookmarks.clear(doc)
-        tell("Bookmarks cleared")
+        tell(jText("Bookmarks cleared", "تم مسح الإشارات المرجعية"))
     }
 
     fun isStarred(doc: OpenDocument): Boolean = recentList.firstOrNull { it.uri == docKey(doc) }?.starred == true
@@ -899,7 +901,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun startVoice(doc: OpenDocument, at: PagePoint) {
         val app = getApplication<Application>()
         if (app.cacheDir.usableSpace < 60L * 1024 * 1024) {
-            tell("Not enough free storage to record. Free up some space and try again.")
+            tell(jText("Not enough free storage to record. Free up some space and try again.", "لا توجد مساحة كافية للتسجيل. أفرغ بعض المساحة وحاول مجددًا."))
             return
         }
         val prompt = VoicePrompt(doc, at)
@@ -915,7 +917,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun onMicPermission(granted: Boolean) {
         val p = pendingVoice
         pendingVoice = null
-        if (granted && p != null) voicePrompt = p else if (!granted) tell("Voice comments need access to the microphone.")
+        if (granted && p != null) voicePrompt = p else if (!granted) tell(jText("Voice comments need access to the microphone.", "تتطلب التعليقات الصوتية الوصول إلى الميكروفون."))
     }
 
     fun dismissMicRationale(openSettings: Boolean) {
@@ -961,22 +963,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Put [text] on the clipboard (Android 13 and later confirm it themselves). */
     fun copyText(text: String) {
         val cm = getApplication<Application>().getSystemService(android.content.ClipboardManager::class.java)
-        cm?.setPrimaryClip(android.content.ClipData.newPlainText("Comment", text))
-        if (android.os.Build.VERSION.SDK_INT < 33) tell("Copied")
+        cm?.setPrimaryClip(android.content.ClipData.newPlainText(jText("Comment", "تعليق"), text))
+        if (android.os.Build.VERSION.SDK_INT < 33) tell(jText("Copied", "تم النسخ"))
     }
 
     /** Copy the selected text (when the document allows copying). */
     fun copySelection(doc: OpenDocument) {
         if (!doc.info.allowsCopying) {
-            tell("This document doesn't allow copying its text.")
+            tell(jText("This document doesn't allow copying its text.", "لا يسمح هذا المستند بنسخ نصه."))
             return
         }
         viewModelScope.launch {
             val text = doc.selection.text() ?: return@launch
             val cm = getApplication<Application>().getSystemService(android.content.ClipboardManager::class.java)
-            cm?.setPrimaryClip(android.content.ClipData.newPlainText("PDF text", text))
+            cm?.setPrimaryClip(android.content.ClipData.newPlainText(jText("PDF text", "نص PDF"), text))
             doc.selection.clear()
-            if (android.os.Build.VERSION.SDK_INT < 33) tell("Copied")
+            if (android.os.Build.VERSION.SDK_INT < 33) tell(jText("Copied", "تم النسخ"))
         }
     }
 
@@ -1007,24 +1009,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun recognizeText(doc: OpenDocument) {
         val eng = engine ?: return
         viewModelScope.launch {
-            busy = "Preparing text recognition…"
+            busy = jText("Preparing text recognition…", "جارٍ تجهيز التعرّف على النص…")
             withContext(Dispatchers.IO) { runCatching { eng.prepareOcrModels(getApplication()) } }
             busy = null
             val status = runCatching { eng.tool("ocr_status") }.getOrNull()
             if (status?.optBoolean("available", false) != true) {
-                tell("Text recognition isn't installed in this build.")
+                tell(jText("Text recognition isn't installed in this build.", "التعرّف على النص غير مثبّت في هذه النسخة."))
                 return@launch
             }
-            busy = "Recognizing text…"
+            busy = jText("Recognizing text…", "جارٍ التعرّف على النص…")
             try {
                 val r = eng.tool("ocr_recognize", mapOf("doc" to doc.id))
                 refresh(doc)
                 val pages = r.optJSONArray("pages")
                 val n = (0 until (pages?.length() ?: 0)).count { pages?.optJSONObject(it)?.has("skipped") == false }
                 if (n > 0) {
-                    success = SuccessBanner("Text recognized (English). It can now be selected, copied, searched and highlighted.") { undo(doc) }
+                    success = SuccessBanner(jText("Text recognized (English). It can now be selected, copied, searched and highlighted.", "تم التعرّف على النص الإنجليزي. يمكنك الآن تحديده ونسخه والبحث فيه وتمييزه.")) { undo(doc) }
                 } else {
-                    tell("No pages needed recognizing")
+                    tell(jText("No pages needed recognizing", "لا توجد صفحات تحتاج إلى التعرّف على النص"))
                 }
             } catch (e: MobileException) {
                 tell(e.userMessage)
@@ -1149,7 +1151,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     bmp
                 }.getOrNull()
             }
-            if (importedSignature == null) tell("That image couldn't be read.")
+            if (importedSignature == null) tell(jText("That image couldn't be read.", "تعذّرت قراءة الصورة."))
         }
     }
 
@@ -1244,7 +1246,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 idImport = io.github.artcraftandroid.pdfcraft.ui.viewer.IdImport(imp.file, imp.name, wrong = true)
             } catch (e: MobileException) {
                 imp.file.delete()
-                tell("PdfCraft can't use this file as a digital ID: ${e.userMessage}")
+                tell("Jahfan can't use this file as a digital ID: ${e.userMessage}")
             }
         }
     }
@@ -1663,12 +1665,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val f = File(getApplication<Application>().cacheDir, "image-${System.nanoTime()}-${name}")
                 withContext(Dispatchers.IO) {
                     getApplication<Application>().contentResolver.openInputStream(uri).use { input ->
-                        requireNotNull(input) { "The picture couldn't be read." }
+                        requireNotNull(input) { jText("The picture couldn't be read.", "تعذّرت قراءة الصورة.") }
                         f.outputStream().use { input.copyTo(it) }
                     }
                 }
                 if (name.lowercase().endsWith(".gif")) {
-                    tell("GIF images can't be added.")
+                    tell(jText("GIF images can't be added.", "لا يمكن إضافة صور GIF."))
                     return@launch
                 }
                 val eng = engine ?: return@launch
@@ -1717,7 +1719,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } ?: return false
         if (w.readOnly) return true
         if (!doc.info.allowsFormFilling) {
-            tell("This tool is not available due to the document's security settings.")
+            tell(jText("This tool is not available due to the document's security settings.", "هذه الأداة غير متاحة بسبب إعدادات أمان المستند."))
             return true
         }
         when (w.kind) {
@@ -1751,12 +1753,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             when {
                 act.has("reset") -> {
                     val names = act.optJSONArray("reset")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
-                    runTool(doc, "form_reset", if (names.isEmpty()) emptyMap() else mapOf("fields" to names)) { tell("Form cleared") }
+                    runTool(doc, "form_reset", if (names.isEmpty()) emptyMap() else mapOf("fields" to names)) { tell(jText("Form cleared", "تم مسح النموذج")) }
                 }
                 act.has("url") -> linkPrompt = act.optString("url")
                 act.has("page") -> doc.viewer.goToPage((act.optInt("page") - 1).coerceIn(0, doc.pageCount - 1))
-                act.has("submit") -> tell("This button sends the form online, which PdfCraft doesn't do.")
-                act.has("javascript") -> tell("This button runs a script, which PdfCraft doesn't run.")
+                act.has("submit") -> tell(jText("This button sends the form online, which Jahfan doesn't do.", "يرسل هذا الزر النموذج عبر الإنترنت، ولا يدعم جحفان ذلك."))
+                act.has("javascript") -> tell(jText("This button runs a script, which Jahfan doesn't run.", "يشغّل هذا الزر برنامجًا نصيًا، ولا يدعم جحفان تشغيل البرامج النصية."))
             }
         }
     }
@@ -1841,7 +1843,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val dir = File(getApplication<Application>().cacheDir, "picked/${System.nanoTime()}").apply { mkdirs() }
         val out = File(dir, files.displayNameRaw(uri))
         getApplication<Application>().contentResolver.openInputStream(uri).use { input ->
-            requireNotNull(input) { "${out.name} couldn't be read." }
+            requireNotNull(input) { jText("${out.name} couldn't be read.", "تعذّرت قراءة ${out.name}.") }
             out.outputStream().use { input.copyTo(it) }
         }
         return out
@@ -1867,8 +1869,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val uri = withContext(Dispatchers.IO) { files.saveToDownloads(file, name, mime).also { file.delete() } }
         val size = withContext(Dispatchers.IO) { files.size(uri) }
         val sizeText = size?.let { " (${io.github.artcraftandroid.pdfcraft.ui.viewer.formatSize(it)})" } ?: ""
-        if (mime == "application/pdf") tell("Saved as $name in Downloads$sizeText", "Open") { open(uri) }
-        else tell("Saved as $name in Downloads$sizeText", "Open") {
+        if (mime == "application/pdf") tell(jText("Saved as $name in Downloads$sizeText", "تم الحفظ باسم $name في التنزيلات$sizeText"), jText("Open", "فتح")) { open(uri) }
+        else tell(jText("Saved as $name in Downloads$sizeText", "تم الحفظ باسم $name في التنزيلات$sizeText"), jText("Open", "فتح")) {
             intents.trySend(Intent.createChooser(Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
         }
     }
@@ -1876,7 +1878,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun tempFile(ext: String) = File(getApplication<Application>().cacheDir, "out-${System.nanoTime()}.$ext")
 
     /** Compress PDF at [level] (0 high, 1 medium, 2 low compression). */
-    fun compress(doc: OpenDocument, level: Int) = job("Compressing…") { eng ->
+    fun compress(doc: OpenDocument, level: Int) = job(jText("Compressing…", "جارٍ الضغط…")) { eng ->
         val (ppi, above, quality) = when (level) {
             0 -> Triple(72, 108, 40)
             2 -> Triple(300, 450, 80)
@@ -1892,14 +1894,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (out.length() >= doc.info.fileSize.toLong()) {
             // as the reference: nothing is saved when the file can't get any smaller
             out.delete()
-            tell("This file is already as small as it can be.")
+            tell(jText("This file is already as small as it can be.", "هذا الملف بأصغر حجم ممكن بالفعل."))
             return@job
         }
         deliver(out, "${doc.title}_compressed.pdf")
     }
 
     /** Combine the gathered files, in order, into [name].pdf. */
-    fun combine(name: String) = job("Combining…") { eng ->
+    fun combine(name: String) = job(jText("Combining…", "جارٍ الدمج…")) { eng ->
         val paths = withContext(Dispatchers.IO) { combineFiles.map { copyIn(it.uri).absolutePath } }
         val out = tempFile("pdf")
         eng.tool("doc_combine", mapOf("paths" to paths, "out" to out.absolutePath))
@@ -1912,7 +1914,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * A protected copy of [doc] with [password] as its open password. The copy is made from a
      * second, temporary engine document, so the open one keeps its file and history.
      */
-    fun protect(doc: OpenDocument, password: String) = job("Setting password…") { eng ->
+    fun protect(doc: OpenDocument, password: String) = job(jText("Setting password…", "جارٍ تعيين كلمة المرور…")) { eng ->
         save(doc)
         val out = tempFile("pdf")
         val copy = eng.tool("doc_open", mapOf("path" to doc.file.absolutePath, "password" to doc.password)).optLong("doc")
@@ -1932,12 +1934,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (page != null) args["pages"] = listOf(page + 1)
         runTool(doc, "page_set_box", args) {
             toolScreen = null
-            tell(if (page == null) "Every page is cropped." else "The page is cropped.")
+            tell(if (page == null) jText("Every page is cropped.", "تم اقتصاص جميع الصفحات.") else jText("The page is cropped.", "تم اقتصاص الصفحة."))
         }
     }
 
     /** Export [doc] as a Word, RTF, Excel or PowerPoint document. */
-    fun exportDocument(doc: OpenDocument, ext: String) = job("Exporting to ${ext.uppercase()}…") { eng ->
+    fun exportDocument(doc: OpenDocument, ext: String) = job(jText("Exporting to ${ext.uppercase()}…", "جارٍ التصدير إلى ${ext.uppercase()}…")) { eng ->
         val out = tempFile(ext)
         eng.tool("doc_export_office", mapOf("doc" to doc.id, "path" to out.absolutePath))
         toolScreen = null
@@ -1968,11 +1970,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Pictures of [pages] (0-based) at 200 dpi, saved to Pictures/PdfCraft or handed to the share sheet. */
-    fun writeImages(doc: OpenDocument, ext: String, pages: List<Int>, share: Boolean) = job("Exporting images…") { eng ->
+    fun writeImages(doc: OpenDocument, ext: String, pages: List<Int>, share: Boolean) = job(jText("Exporting images…", "جارٍ تصدير الصور…")) { eng ->
         val mime = if (ext == "png") "image/png" else "image/jpeg"
         val made = mutableListOf<Pair<File, String>>()
         for ((n, i) in pages.withIndex()) {
-            busy = "Exporting page ${n + 1} of ${pages.size}…"
+            busy = jText("Exporting page ${n + 1} of ${pages.size}…", "جارٍ تصدير الصفحة ${n + 1} من ${pages.size}…")
             val img = withContext(eng.renders) { eng.session.renderPage(doc.id, i.toUInt(), 200f / 72f, null) }
             val out = tempFile(ext)
             withContext(Dispatchers.IO) {
@@ -2006,29 +2008,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     f.delete()
                 }
             }
-            tell(if (made.size == 1) "1 image saved to Pictures/PdfCraft" else "${made.size} images saved to Pictures/PdfCraft")
+            tell(if (made.size == 1) jText("1 image saved to Pictures/Jahfan", "تم حفظ صورة واحدة في Pictures/جحفان") else jText("${made.size} images saved to Pictures/Jahfan", "تم حفظ ${made.size} صور في Pictures/جحفان"))
         }
     }
 
     /** Create PDF from picked files (images, text, Office documents, PDFs), combined in order, then open it. */
-    private fun createFrom(picked: List<Uri>) = job("Creating PDF…") { eng ->
+    private fun createFrom(picked: List<Uri>) = job(jText("Creating PDF…", "جارٍ إنشاء PDF…")) { eng ->
         // at most 12 files at once, as the reference allows
-        if (picked.size > MAX_CREATE_FILES) tell("Only the first $MAX_CREATE_FILES files were used.")
+        if (picked.size > MAX_CREATE_FILES) tell(jText("Only the first $MAX_CREATE_FILES files were used.", "تم استخدام أول $MAX_CREATE_FILES ملفات فقط."))
         val uris = picked.take(MAX_CREATE_FILES)
         val paths = withContext(Dispatchers.IO) { uris.map { copyIn(it).absolutePath } }
         val out = tempFile("pdf")
         eng.tool("doc_create_multiple", mapOf("paths" to paths, "out" to out.absolutePath, "mode" to "combine"))
         val name = files.displayNameRaw(uris.first()).substringBeforeLast('.') + ".pdf"
         val uri = withContext(Dispatchers.IO) { files.saveToDownloads(out, DocumentFiles.safeName(name)).also { out.delete() } }
-        tell("Saved as $name in Downloads")
+        tell(jText("Saved as $name in Downloads", "تم الحفظ باسم $name في التنزيلات"))
         open(uri)
     }
 
     /** Pages [pages] (0-based) of [doc] as a new PDF in Downloads. */
-    fun extractPages(doc: OpenDocument, pages: List<Int>) = job("Extracting…") { eng ->
+    fun extractPages(doc: OpenDocument, pages: List<Int>) = job(jText("Extracting…", "جارٍ الاستخراج…")) { eng ->
         val out = tempFile("pdf")
         eng.tool("page_extract", mapOf("doc" to doc.id, "pages" to pages.map { it + 1 }, "out" to out.absolutePath))
-        deliver(out, "Pages from ${doc.title}.pdf")
+        deliver(out, jText("Pages from ${doc.title}.pdf", "صفحات من ${doc.title}.pdf"))
     }
 
     // ---- Scan ---------------------------------------------------------------------------------
@@ -2081,7 +2083,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val r = retakeIndex
             retakeIndex = null
             if (r != null && r in scanPages.indices) scanPages[r] = page else scanPages.add(page)
-            if (scanName.isBlank()) scanName = "Scan " + java.text.SimpleDateFormat("yyyy-MM-dd HH.mm.ss", java.util.Locale.US).format(java.util.Date())
+            if (scanName.isBlank()) scanName = jText("Scan ", "مسح ") + java.text.SimpleDateFormat("yyyy-MM-dd HH.mm.ss", java.util.Locale.US).format(java.util.Date())
             if (toolScreen != ToolScreen.Scan) toolScreen = ToolScreen.Scan
             // the document's edges in the photo, shown on the page and moved in Crop; the whole
             // photo is kept when none are found
@@ -2116,10 +2118,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Save the scanned pages as a PDF with [filter]'s look (or insert them where Organize asked). */
-    fun saveScan(filter: ScanFilter) = job("Saving scan…") { eng ->
+    fun saveScan(filter: ScanFilter) = job(jText("Saving scan…", "جارٍ حفظ المسح الضوئي…")) { eng ->
         val pages = scanPages.toList()
         val paths = pages.map { it.file.absolutePath }
-        val created = eng.tool("doc_create", mapOf("from" to "images", "paths" to paths, "name" to "Scan"))
+        val created = eng.tool("doc_create", mapOf("from" to "images", "paths" to paths, "name" to jText("Scan", "مسح ضوئي")))
         val id = created.optLong("doc")
         try {
             // each page keeps the part inside its corners, straightened, with the look; a whole
@@ -2130,13 +2132,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val size = sizes?.optJSONObject(i) ?: continue
                 val (w, h) = size.optDouble("width") to size.optDouble("height")
                 val corners = page.corners.mapIndexed { k, v -> v * if (k % 2 == 0) w else h }
-                busy = "Cleaning up page ${i + 1} of ${pages.size}…"
+                busy = jText("Cleaning up page ${i + 1} of ${pages.size}…", "جارٍ تحسين الصفحة ${i + 1} من ${pages.size}…")
                 runCatching { eng.tool("page_enhance_camera", mapOf("doc" to id, "page" to i + 1, "corners" to corners, "mode" to filter.mode, "level" to filter.level)) }
             }
             // the scan's words become text, searchable and selectable, when text recognition is installed
             withContext(Dispatchers.IO) { runCatching { eng.prepareOcrModels(getApplication()) } }
             if (runCatching { eng.tool("ocr_status") }.getOrNull()?.optBoolean("available", false) == true) {
-                busy = "Recognizing text…"
+                busy = jText("Recognizing text…", "جارٍ التعرّف على النص…")
                 runCatching { eng.tool("ocr_recognize", mapOf("doc" to id)) }
             }
             val out = tempFile("pdf")
@@ -2152,9 +2154,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 runTool(target.first, "page_insert_file", mapOf("path" to out.absolutePath, "at" to target.second))
             } else {
                 val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH.mm.ss", java.util.Locale.US).format(java.util.Date())
-                val name = DocumentFiles.safeName(chosen.ifEmpty { "Scan $stamp" })
+                val name = DocumentFiles.safeName(chosen.ifEmpty { jText("Scan $stamp", "مسح $stamp") })
                 val uri = withContext(Dispatchers.IO) { files.saveToDownloads(out, name).also { out.delete() } }
-                tell("Saved as $name in Downloads")
+                tell(jText("Saved as $name in Downloads", "تم الحفظ باسم $name في التنزيلات"))
                 open(uri)
             }
         } finally {
@@ -2290,7 +2292,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return all.filter { q in it.name.lowercase() }.distinctBy { it.key }.distinctBy { sameFile(it.name, it.size) }
     }
 
-    private fun locationOf(uri: String): String = runCatching { files.displayLocation(Uri.parse(uri)) }.getOrDefault("This device")
+    private fun locationOf(uri: String): String = runCatching { files.displayLocation(Uri.parse(uri)) }.getOrDefault(jText("This device", "هذا الجهاز"))
 
     fun clearRecents() {
         viewModelScope.launch {
@@ -2361,7 +2363,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun shareFiles(rows: List<io.github.artcraftandroid.pdfcraft.ui.home.FileRow>) {
         viewModelScope.launch {
             val local = rows.mapNotNull { r -> localFileOf(r)?.let { it to r.name } }
-            if (local.isEmpty()) return@launch tell("The files couldn't be read.")
+            if (local.isEmpty()) return@launch tell(jText("The files couldn't be read.", "تعذّرت قراءة الملفات."))
             val uris = withContext(Dispatchers.IO) { files.shareableAll(local) }
             val send = if (uris.size == 1) Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris.first())
             else Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
@@ -2385,7 +2387,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun shareFile(row: io.github.artcraftandroid.pdfcraft.ui.home.FileRow) {
         viewModelScope.launch {
-            val f = localFileOf(row) ?: return@launch tell("The file couldn't be read.")
+            val f = localFileOf(row) ?: return@launch tell(jText("The file couldn't be read.", "تعذّرت قراءة الملف."))
             val uri = withContext(Dispatchers.IO) { files.shareable(f, row.name) }
             intents.trySend(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
         }
@@ -2393,14 +2395,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun printFile(row: io.github.artcraftandroid.pdfcraft.ui.home.FileRow) {
         viewModelScope.launch {
-            val f = localFileOf(row) ?: return@launch tell("The file couldn't be read.")
+            val f = localFileOf(row) ?: return@launch tell(jText("The file couldn't be read.", "تعذّرت قراءة الملف."))
             prints.trySend(f to row.name)
         }
     }
 
     fun openWith(row: io.github.artcraftandroid.pdfcraft.ui.home.FileRow) {
         viewModelScope.launch {
-            val f = localFileOf(row) ?: return@launch tell("The file couldn't be read.")
+            val f = localFileOf(row) ?: return@launch tell(jText("The file couldn't be read.", "تعذّرت قراءة الملف."))
             val uri = withContext(Dispatchers.IO) { files.shareable(f, row.name) }
             intents.trySend(Intent.createChooser(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
         }
@@ -2416,8 +2418,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         u.scheme == "file" -> {
                             val f = File(requireNotNull(u.path))
                             val target = File(f.parentFile, name)
-                            require(!target.exists()) { "A file named $name is already there." }
-                            require(f.renameTo(target)) { "The file couldn't be renamed." }
+                            require(!target.exists()) { jText("A file named $name is already there.", "يوجد ملف بالاسم $name بالفعل.") }
+                            require(f.renameTo(target)) { jText("The file couldn't be renamed.", "تعذّرت إعادة تسمية الملف.") }
                             recents.remove(setOf(row.key))
                             recents.touch(RecentFile(Uri.fromFile(target).toString(), name, System.currentTimeMillis(), 0, target.length()))
                             bookmarkStore.move(row.key, Uri.fromFile(target).toString())
@@ -2425,12 +2427,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         // what the tools saved to Downloads: MediaStore entries keep their address when renamed
                         u.authority == android.provider.MediaStore.AUTHORITY -> {
                             val values = android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name) }
-                            require(getApplication<Application>().contentResolver.update(u, values, null, null) > 0) { "This file can't be renamed here." }
+                            require(getApplication<Application>().contentResolver.update(u, values, null, null) > 0) { jText("This file can't be renamed here.", "لا يمكن إعادة تسمية هذا الملف هنا.") }
                             recents.update(row.key) { it.copy(name = name) }
                         }
                         else -> {
                             val renamed = android.provider.DocumentsContract.renameDocument(getApplication<Application>().contentResolver, u, name)
-                                ?: error("This file can't be renamed here.")
+                                ?: error(jText("This file can't be renamed here.", "لا يمكن إعادة تسمية هذا الملف هنا."))
                             recents.remove(setOf(row.key))
                             recents.touch(RecentFile(renamed.toString(), name, System.currentTimeMillis(), 0, files.size(renamed) ?: 0))
                             bookmarkStore.move(row.key, renamed.toString())
@@ -2446,11 +2448,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun duplicateFile(row: io.github.artcraftandroid.pdfcraft.ui.home.FileRow) {
         viewModelScope.launch {
-            val f = localFileOf(row) ?: return@launch tell("The file couldn't be read.")
+            val f = localFileOf(row) ?: return@launch tell(jText("The file couldn't be read.", "تعذّرت قراءة الملف."))
             val copy = withContext(Dispatchers.IO) { File(getApplication<Application>().cacheDir, "dup-${System.nanoTime()}.pdf").also { f.copyTo(it, overwrite = true) } }
             val base = row.name.removeSuffix(".pdf")
             val uri = withContext(Dispatchers.IO) { files.saveToDownloads(copy, "$base copy.pdf").also { copy.delete() } }
-            tell("Duplicated as $base copy.pdf in Downloads", "Open") { open(uri) }
+            tell(jText("Duplicated as $base copy.pdf in Downloads", "تم إنشاء نسخة باسم $base copy.pdf في التنزيلات"), jText("Open", "فتح")) { open(uri) }
             scanLocal(force = true)
         }
     }
@@ -2468,9 +2470,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         copyRow = null
         if (target == null) return true
         viewModelScope.launch {
-            val f = localFileOf(row) ?: return@launch tell("The file couldn't be read.")
+            val f = localFileOf(row) ?: return@launch tell(jText("The file couldn't be read.", "تعذّرت قراءة الملف."))
             runCatching { withContext(Dispatchers.IO) { files.writeBack(f, target) } }
-                .onSuccess { tell("Saved a copy") }.onFailure { tell(it.userMessage) }
+                .onSuccess { tell(jText("Saved a copy", "تم حفظ نسخة")) }.onFailure { tell(it.userMessage) }
         }
         return true
     }
@@ -2481,15 +2483,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val ok = withContext(Dispatchers.IO) {
                 runCatching {
                     when {
-                        u.scheme == "file" -> require(File(requireNotNull(u.path)).delete()) { "The file couldn't be deleted." }
+                        u.scheme == "file" -> require(File(requireNotNull(u.path)).delete()) { jText("The file couldn't be deleted.", "تعذّر حذف الملف.") }
                         u.authority == android.provider.MediaStore.AUTHORITY ->
-                            require(getApplication<Application>().contentResolver.delete(u, null, null) > 0) { "The file couldn't be deleted." }
-                        else -> require(android.provider.DocumentsContract.deleteDocument(getApplication<Application>().contentResolver, u)) { "The file couldn't be deleted." }
+                            require(getApplication<Application>().contentResolver.delete(u, null, null) > 0) { jText("The file couldn't be deleted.", "تعذّر حذف الملف.") }
+                        else -> require(android.provider.DocumentsContract.deleteDocument(getApplication<Application>().contentResolver, u)) { jText("The file couldn't be deleted.", "تعذّر حذف الملف.") }
                     }
                     recents.remove(setOf(row.key))
                 }
             }
-            ok.onFailure { tell(it.userMessage) }.onSuccess { tell("${row.name} deleted") }
+            ok.onFailure { tell(it.userMessage) }.onSuccess { tell(jText("${row.name} deleted", "تم حذف ${row.name}")) }
             refreshRecents()
             scanLocal(force = true)
         }
@@ -2531,7 +2533,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearFormSuggestions() {
         appPrefs.edit().remove("suggestions").apply()
-        tell("Suggestions cleared")
+        tell(jText("Suggestions cleared", "تم مسح الاقتراحات"))
     }
 
     // ---- Selecting a comment ------------------------------------------------------------------

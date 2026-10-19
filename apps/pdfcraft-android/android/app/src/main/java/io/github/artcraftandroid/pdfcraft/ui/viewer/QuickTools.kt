@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.content.Context
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -67,23 +69,25 @@ import kotlin.math.roundToInt
  * A tool that can sit on the viewer's bottom toolbar or in More tools: [label] on the bar,
  * [title] in More tools, [subTools] when it opens a row of sub-tools (the bar's corner mark).
  */
-enum class QuickTool(val id: String, val label: String, val title: String, val icon: ImageVector, val hue: Color, val subTools: Boolean = false) {
-    Edit("edit", "Edit PDF", "Edit PDF", LucideIcons.FilePenLine, ToolHues.edit),
-    Comment("comment", "Comment", "Comment", LucideIcons.MessageSquareText, ToolHues.comment, subTools = true),
-    Highlight("highlight", "Highlight", "Highlight", LucideIcons.Highlighter, ToolHues.text, subTools = true),
-    Draw("draw", "Draw", "Draw", LucideIcons.PenLine, ToolHues.sign),
-    FillSign("fillsign", "Fill & Sign", "Fill & Sign", LucideIcons.Signature, ToolHues.sign, subTools = true),
-    Export("export", "Export PDF", "Export PDF", LucideIcons.FileOutput, ToolHues.export),
-    Combine("combine", "Combine", "Combine files", LucideIcons.Combine, ToolHues.combine),
-    Compress("compress", "Compress", "Compress PDF", LucideIcons.FileArchive, ToolHues.compress),
-    Protect("protect", "Password", "Set password", LucideIcons.FileLock2, ToolHues.protect),
-    Organize("organize", "Organize", "Organize pages", LucideIcons.LayoutGrid, ToolHues.organize),
-    Crop("crop", "Crop", "Crop pages", LucideIcons.Crop, ToolHues.crop),
-    Ocr("ocr", "Recognize", "Recognize text", LucideIcons.ScanText, ToolHues.ocr),
-    Create("create", "Create PDF", "Create PDF", LucideIcons.FilePlus2, ToolHues.create),
-    Text("text", "Add text", "Text", LucideIcons.Type, ToolHues.text),
-    Scan("scan", "Scan", "Scan", LucideIcons.Camera, ToolHues.scan),
-    ReadAloud("readaloud", "Read aloud", "Read aloud", LucideIcons.Volume2, ToolHues.read);
+enum class QuickTool(val id: String, private val labelText: () -> String, private val titleText: () -> String, val icon: ImageVector, val hue: Color, val subTools: Boolean = false) {
+    Edit("edit", { jText("Edit PDF", "تحرير PDF") }, { jText("Edit PDF", "تحرير PDF") }, LucideIcons.FilePenLine, ToolHues.edit),
+    Comment("comment", { jText("Comment", "تعليق") }, { jText("Comment", "تعليق") }, LucideIcons.MessageSquareText, ToolHues.comment, subTools = true),
+    Highlight("highlight", { jText("Highlight", "تمييز") }, { jText("Highlight", "تمييز") }, LucideIcons.Highlighter, ToolHues.text, subTools = true),
+    Draw("draw", { jText("Draw", "رسم") }, { jText("Draw", "رسم") }, LucideIcons.PenLine, ToolHues.sign),
+    FillSign("fillsign", { jText("Fill & Sign", "تعبئة وتوقيع") }, { jText("Fill & Sign", "تعبئة وتوقيع") }, LucideIcons.Signature, ToolHues.sign, subTools = true),
+    Export("export", { jText("Export PDF", "تصدير PDF") }, { jText("Export PDF", "تصدير PDF") }, LucideIcons.FileOutput, ToolHues.export),
+    Combine("combine", { jText("Combine", "دمج") }, { jText("Combine files", "دمج الملفات") }, LucideIcons.Combine, ToolHues.combine),
+    Compress("compress", { jText("Compress", "ضغط") }, { jText("Compress PDF", "ضغط PDF") }, LucideIcons.FileArchive, ToolHues.compress),
+    Protect("protect", { jText("Password", "كلمة المرور") }, { jText("Set password", "تعيين كلمة مرور") }, LucideIcons.FileLock2, ToolHues.protect),
+    Organize("organize", { jText("Organize", "تنظيم") }, { jText("Organize pages", "تنظيم الصفحات") }, LucideIcons.LayoutGrid, ToolHues.organize),
+    Crop("crop", { jText("Crop", "اقتصاص") }, { jText("Crop pages", "اقتصاص الصفحات") }, LucideIcons.Crop, ToolHues.crop),
+    Ocr("ocr", { jText("Recognize", "التعرّف") }, { jText("Recognize text", "التعرّف على النص") }, LucideIcons.ScanText, ToolHues.ocr),
+    Create("create", { jText("Create PDF", "إنشاء PDF") }, { jText("Create PDF", "إنشاء PDF") }, LucideIcons.FilePlus2, ToolHues.create),
+    Text("text", { jText("Add text", "إضافة نص") }, { jText("Text", "نص") }, LucideIcons.Type, ToolHues.text),
+    Scan("scan", { jText("Scan", "مسح ضوئي") }, { jText("Scan", "مسح ضوئي") }, LucideIcons.Camera, ToolHues.scan),
+    ReadAloud("readaloud", { jText("Read aloud", "القراءة بصوت عالٍ") }, { jText("Read aloud", "القراءة بصوت عالٍ") }, LucideIcons.Volume2, ToolHues.read);
+    val label: String get() = labelText()
+    val title: String get() = titleText()
 
     companion object {
         /** The bar as it comes: the reference's default tools and order. */
@@ -227,25 +231,25 @@ fun CustomizeToolbar(vm: AppViewModel, onDone: () -> Unit) {
                     )
                 }
                 .clickable(role = Role.Button) { if (t in bar) toGrid(t, 0) else toBar(t, bar.size) }
-                .semantics { contentDescription = if (t in bar) "${t.title}, on the toolbar" else "${t.title}, in More tools" },
+                .semantics { contentDescription = if (t in bar) jText("${t.title}, on the toolbar", "${t.title}، في شريط الأدوات") else jText("${t.title}, in More tools", "${t.title}، في المزيد من الأدوات") },
         ) { content() }
     }
 
     Box(Modifier.fillMaxWidth().onGloballyPositioned { origin = it.boundsInRoot().topLeft }) {
         Column {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Customize toolbar", color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                BarIcon(LucideIcons.X, "Cancel", onDone)
-                BarIcon(LucideIcons.Check, "Save toolbar", {
+                Text(jText("Customize toolbar", "تخصيص شريط الأدوات"), color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                BarIcon(LucideIcons.X, jText("Cancel", "إلغاء"), onDone)
+                BarIcon(LucideIcons.Check, jText("Save toolbar", "حفظ شريط الأدوات"), {
                     prefs.save(bar.toList(), grid.toList())
                     onDone()
                 }, tint = c.accent)
             }
             Text(
-                "Drag tools between the toolbar and More tools. The toolbar holds $slots.",
+                jText("Drag tools between the toolbar and More tools. The toolbar holds $slots.", "اسحب الأدوات بين شريط الأدوات والمزيد من الأدوات. يتسع الشريط لعدد $slots من الأدوات."),
                 color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             )
-            Text("Toolbar", color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 6.dp))
+            Text(jText("Toolbar", "شريط الأدوات"), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 6.dp))
             BoxWithConstraints(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp).clip(RoundedCornerShape(8.dp)).background(c.pressed)
                     .onGloballyPositioned { barRect = it.boundsInRoot() },
@@ -258,7 +262,7 @@ fun CustomizeToolbar(vm: AppViewModel, onDone: () -> Unit) {
                     Box(Modifier.alpha(0.5f)) { BarTool(null, itemW) }
                 }
             }
-            Text("More tools", color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 6.dp))
+            Text(jText("More tools", "المزيد من الأدوات"), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 6.dp))
             Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp).heightIn(min = 96.dp).onGloballyPositioned { gridRect = it.boundsInRoot() }) {
                 grid.chunked(4).forEach { row ->
                     Row(Modifier.fillMaxWidth()) {
@@ -291,7 +295,7 @@ private fun BarTool(tool: QuickTool?, width: androidx.compose.ui.unit.Dp) {
         Icon(tool?.icon ?: LucideIcons.LayoutGrid, null, tint = c.icon, modifier = Modifier.size(24.dp))
         Spacer(Modifier.height(6.dp))
         Text(
-            tool?.label ?: "More tools", color = c.text, fontSize = 12.sp, lineHeight = 14.sp, maxLines = 2,
+            tool?.label ?: jText("More tools", "المزيد من الأدوات"), color = c.text, fontSize = 12.sp, lineHeight = 14.sp, maxLines = 2,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = TextAlign.Center,
         )
     }

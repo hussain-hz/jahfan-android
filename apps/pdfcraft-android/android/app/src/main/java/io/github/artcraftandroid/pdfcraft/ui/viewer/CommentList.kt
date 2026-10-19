@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -80,21 +82,21 @@ private val SNIPPETS = setOf("Highlight", "Underline", "StrikeOut")
 
 /** What a comment did, in the list's italic line. */
 internal fun commentActionLabel(c: CommentInfo): String = when (c.subtype) {
-    "Highlight" -> "Highlighted"
-    "Underline" -> "Underlined"
-    "StrikeOut" -> "Struck out text"
-    "Ink" -> "Drew freehand"
-    "Line" -> if (c.kind.contains("arrow", ignoreCase = true)) "Drew an arrow" else "Drew a line"
-    "Square" -> "Drew a rectangle"
-    "Circle" -> "Drew an oval"
-    "Polygon" -> if (c.kind.contains("cloud", ignoreCase = true)) "Drew a cloud" else "Drew a polygon"
-    "PolyLine" -> "Drew joined lines"
-    "Stamp" -> "Stamped the page"
-    "Text" -> "Added a note"
-    "FreeText" -> if (c.kind.contains("callout", ignoreCase = true)) "Added a callout" else "Added a text box"
-    "Caret" -> if (c.kind.contains("replace", ignoreCase = true)) "Suggested a replacement" else "Suggested an insertion"
-    "Sound" -> "Recorded a voice note"
-    else -> "Commented"
+    "Highlight" -> jText("Highlighted", "ميّز نصًا")
+    "Underline" -> jText("Underlined", "وضع خطًا تحت النص")
+    "StrikeOut" -> jText("Struck out text", "شطب نصًا")
+    "Ink" -> jText("Drew freehand", "رسم بخط حر")
+    "Line" -> if (c.kind.contains("arrow", ignoreCase = true)) jText("Drew an arrow", "رسم سهمًا") else jText("Drew a line", "رسم خطًا")
+    "Square" -> jText("Drew a rectangle", "رسم مستطيلًا")
+    "Circle" -> jText("Drew an oval", "رسم شكلًا بيضاويًا")
+    "Polygon" -> if (c.kind.contains("cloud", ignoreCase = true)) jText("Drew a cloud", "رسم شكل سحابة") else jText("Drew a polygon", "رسم مضلعًا")
+    "PolyLine" -> jText("Drew joined lines", "رسم خطوطًا متصلة")
+    "Stamp" -> jText("Stamped the page", "ختم الصفحة")
+    "Text" -> jText("Added a note", "أضاف ملاحظة")
+    "FreeText" -> if (c.kind.contains("callout", ignoreCase = true)) jText("Added a callout", "أضاف تعليقًا توضيحيًا") else jText("Added a text box", "أضاف مربع نص")
+    "Caret" -> if (c.kind.contains("replace", ignoreCase = true)) jText("Suggested a replacement", "اقترح استبدالًا") else jText("Suggested an insertion", "اقترح إدراجًا")
+    "Sound" -> jText("Recorded a voice note", "سجّل ملاحظة صوتية")
+    else -> jText("Commented", "أضاف تعليقًا")
 }
 
 /** When a comment was made: "Today", "Yesterday", else the date. */
@@ -102,17 +104,17 @@ internal fun commentDateLabel(raw: String?, now: Long = System.currentTimeMillis
     val t = pdfDateMillis(raw) ?: return null
     fun day(ms: Long) = java.util.Calendar.getInstance().apply { timeInMillis = ms }.let { it.get(java.util.Calendar.YEAR) * 400 + it.get(java.util.Calendar.DAY_OF_YEAR) }
     return when (day(t)) {
-        day(now) -> "Today"
-        day(now - 24L * 3600 * 1000) -> "Yesterday"
+        day(now) -> jText("Today", "اليوم")
+        day(now - 24L * 3600 * 1000) -> jText("Yesterday", "أمس")
         else -> java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(t))
     }
 }
 
 /** "N comment threads" (replies aren't threads of their own). */
 internal fun threadsTitle(n: Int): String = when (n) {
-    0 -> "No comments"
-    1 -> "1 comment thread"
-    else -> "$n comment threads"
+    0 -> jText("No comments", "لا توجد تعليقات")
+    1 -> jText("1 comment thread", "سلسلة تعليقات واحدة")
+    else -> jText("$n comment threads", "عدد سلاسل التعليقات: $n")
 }
 
 /**
@@ -150,10 +152,10 @@ fun CommentListScreen(vm: AppViewModel, doc: OpenDocument) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
-                BarIcon(LucideIcons.ArrowLeft, "Back", ::close, iconSize = 27.dp)
+                BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), ::close, iconSize = 27.dp)
             }
             Text(
-                if (list == null) "Comments" else threadsTitle(threads.size),
+                if (list == null) jText("Comments", "التعليقات") else threadsTitle(threads.size),
                 color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
             )
         }
@@ -178,11 +180,11 @@ fun CommentListScreen(vm: AppViewModel, doc: OpenDocument) {
                             .padding(start = 16.dp, top = if (pageIndex == 0) 12.dp else 15.dp, end = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Page ${page + 1}", color = c.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(jText("Page ${page + 1}", "الصفحة ${page + 1}"), color = c.label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         // the chevron's 40 dp target overlaps the rows around it rather than spacing them
                         Box(Modifier.size(width = 40.dp, height = 22.dp), contentAlignment = Alignment.Center) {
                             Icon(
-                                LucideIcons.ChevronUp, if (isFolded) "Expand" else "Collapse", tint = c.icon,
+                                LucideIcons.ChevronUp, if (isFolded) jText("Expand", "توسيع") else jText("Collapse", "طي"), tint = c.icon,
                                 modifier = Modifier.size(22.dp).rotate(if (isFolded) 180f else 0f),
                             )
                         }
@@ -222,19 +224,19 @@ fun CommentListScreen(vm: AppViewModel, doc: OpenDocument) {
         PdfSheet(onDismiss = { menuFor = null }, dim = true) {
             val text = cm.contents?.takeIf { it.isNotBlank() }
             if (text != null) {
-                SheetRow(LucideIcons.Copy, "Copy text", {
+                SheetRow(LucideIcons.Copy, jText("Copy text", "نسخ النص"), {
                     menuFor = null
                     vm.copyText(text)
                 })
             }
             if (text != null && !cm.locked) {
-                SheetRow(LucideIcons.Pencil, "Edit comment", {
+                SheetRow(LucideIcons.Pencil, jText("Edit comment", "تحرير التعليق"), {
                     menuFor = null
                     vm.selectedComment = doc to cm
                 })
             }
             if (!cm.locked) {
-                SheetRow(LucideIcons.Trash2, "Delete", {
+                SheetRow(LucideIcons.Trash2, jText("Delete", "حذف"), {
                     menuFor = null
                     vm.deleteComment(doc, cm)
                 })
@@ -284,13 +286,13 @@ internal fun CommentRow(
             Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        cm.author?.takeIf { it.isNotBlank() } ?: "Guest", color = c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                        cm.author?.takeIf { it.isNotBlank() } ?: jText("Guest", "ضيف"), color = c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp),
                     )
                     commentDateLabel(cm.modified)?.let { Text(it, color = c.textTertiary, fontSize = 16.sp) }
                 }
                 Box {
-                    BarIcon(LucideIcons.EllipsisVertical, "Comment options", onMenu, size = 40.dp)
+                    BarIcon(LucideIcons.EllipsisVertical, jText("Comment options", "خيارات التعليق"), onMenu, size = 40.dp)
                     menu()
                 }
             }
@@ -334,7 +336,7 @@ internal fun CommentRow(
             Spacer(Modifier.height(if (replyLink) 16.dp else if (lastOnPage) 12.dp else 8.dp))
             if (replyLink) {
                 Text(
-                    "Reply", color = c.toolAccent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    jText("Reply", "رد"), color = c.toolAccent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.offset(x = (-8).dp).heightIn(min = 40.dp).clip(RoundedCornerShape(4.dp))
                         .clickable(role = Role.Button, onClick = onReply).padding(horizontal = 8.dp, vertical = 10.dp),
                 )
@@ -348,7 +350,7 @@ internal fun CommentRow(
 /** The guest avatar: a lilac disc, its lower right a shade darker. */
 @Composable
 private fun Avatar(modifier: Modifier) {
-    Canvas(modifier.size(32.dp).semantics { contentDescription = "Avatar" }) {
+    Canvas(modifier.size(32.dp).semantics { contentDescription = jText("Avatar", "الصورة الشخصية") }) {
         val base = Color(0xFF9B80FF)
         drawCircle(base)
         val shade = Path().apply {
@@ -374,9 +376,9 @@ private fun EmptyComments() {
     ) {
         Icon(LucideIcons.MessagesSquare, null, tint = c.textSecondary, modifier = Modifier.size(64.dp))
         Spacer(Modifier.height(24.dp))
-        Text("Get started", color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Text(jText("Get started", "ابدأ الآن"), color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
-        Text("Comments you add with the commenting tools show up here.", color = c.textSecondary, fontSize = 17.sp, textAlign = TextAlign.Center)
+        Text(jText("Comments you add with the commenting tools show up here.", "ستظهر هنا التعليقات التي تضيفها بأدوات التعليق."), color = c.textSecondary, fontSize = 17.sp, textAlign = TextAlign.Center)
         Spacer(Modifier.height(80.dp))
     }
 }

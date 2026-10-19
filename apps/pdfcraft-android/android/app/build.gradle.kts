@@ -232,10 +232,10 @@ abstract class OcrModels : DefaultTask() {
 android {
     namespace = "io.github.artcraftandroid.pdfcraft"
     compileSdk = 37
-    ndkVersion = "29.0.14206865"
+    ndkVersion = providers.gradleProperty("jahfan.ndkVersion").getOrElse("29.0.14206865")
 
     defaultConfig {
-        applicationId = "io.github.artcraftandroid.pdfcraft"
+        applicationId = "com.jahfan.pdf"
         minSdk = minApi
         targetSdk = 36
         versionCode = appVersionCode

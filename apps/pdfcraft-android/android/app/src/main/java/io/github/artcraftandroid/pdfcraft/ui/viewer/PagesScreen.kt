@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import io.github.artcraftandroid.pdfcraft.ui.safeTopPadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -124,13 +126,13 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
         ) {
             Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
                 if (organizing) {
-                    BarIcon(LucideIcons.Check, if (picked.isEmpty()) "Done" else "Back", ::back, tint = c.toolAccent)
+                    BarIcon(LucideIcons.Check, if (picked.isEmpty()) jText("Done", "تم") else jText("Back", "رجوع"), ::back, tint = c.toolAccent)
                 } else {
-                    BarIcon(LucideIcons.ArrowLeft, "Back", ::back, iconSize = 27.dp)
+                    BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), ::back, iconSize = 27.dp)
                 }
             }
             Text(
-                if (organizing && picked.isNotEmpty()) "Selected ${picked.size}" else if (organizing) "Select pages" else "Pages",
+                if (organizing && picked.isNotEmpty()) jText("Selected ${picked.size}", "المحدد: ${picked.size}") else if (organizing) jText("Select pages", "تحديد الصفحات") else jText("Pages", "الصفحات"),
                 color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f),
             )
             if (organizing && exporting == null) {
@@ -214,7 +216,7 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
                                     close()
                                 }
                             }
-                            .semantics { contentDescription = "Page ${i + 1}" },
+                            .semantics { contentDescription = jText("Page ${i + 1}", "الصفحة ${i + 1}") },
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(
@@ -255,23 +257,23 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
         ) {
             if (exporting != null) {
                 // picking the pages to export: save them to the phone's pictures, or share them
-                OrganizeItem(LucideIcons.Save, "Save", enabled) { vm.writeImages(doc, exporting, picked, share = false) }
-                OrganizeItem(LucideIcons.Share2, "Share", enabled) { vm.writeImages(doc, exporting, picked, share = true) }
+                OrganizeItem(LucideIcons.Save, jText("Save", "حفظ"), enabled) { vm.writeImages(doc, exporting, picked, share = false) }
+                OrganizeItem(LucideIcons.Share2, jText("Share", "مشاركة"), enabled) { vm.writeImages(doc, exporting, picked, share = true) }
             } else if (organizing) {
-                OrganizeItem(LucideIcons.FilePlus, "Insert Page", true) { insertMenu = true }
-                OrganizeItem(LucideIcons.FileOutput, "Extract", enabled) { vm.extractPages(doc, picked) }
-                OrganizeItem(LucideIcons.Trash2, "Delete", enabled && picked.size < doc.pageCount) {
+                OrganizeItem(LucideIcons.FilePlus, jText("Insert Page", "إدراج صفحة"), true) { insertMenu = true }
+                OrganizeItem(LucideIcons.FileOutput, jText("Extract", "استخراج"), enabled) { vm.extractPages(doc, picked) }
+                OrganizeItem(LucideIcons.Trash2, jText("Delete", "حذف"), enabled && picked.size < doc.pageCount) {
                     vm.runTool(doc, "page_delete", mapOf("pages" to picked.map { it + 1 }))
                     selected.clear()
                 }
-                OrganizeItem(LucideIcons.RotateCcw, "Left", enabled) { vm.runTool(doc, "page_rotate", mapOf("pages" to picked.map { it + 1 }, "degrees" to -90)) }
-                OrganizeItem(LucideIcons.RotateCw, "Right", enabled) { vm.runTool(doc, "page_rotate", mapOf("pages" to picked.map { it + 1 }, "degrees" to 90)) }
+                OrganizeItem(LucideIcons.RotateCcw, jText("Left", "يسار"), enabled) { vm.runTool(doc, "page_rotate", mapOf("pages" to picked.map { it + 1 }, "degrees" to -90)) }
+                OrganizeItem(LucideIcons.RotateCw, jText("Right", "يمين"), enabled) { vm.runTool(doc, "page_rotate", mapOf("pages" to picked.map { it + 1 }, "degrees" to 90)) }
             } else {
-                OrganizeItem(LucideIcons.FilePenLine, "Edit PDF", true) {
+                OrganizeItem(LucideIcons.FilePenLine, jText("Edit PDF", "تحرير PDF"), true) {
                     close()
                     vm.enterTool(doc, ViewerTool.Edit)
                 }
-                OrganizeItem(LucideIcons.Crop, "Crop pages", true) {
+                OrganizeItem(LucideIcons.Crop, jText("Crop pages", "اقتصاص الصفحات"), true) {
                     close()
                     vm.runQuickTool(doc, QuickTool.Crop)
                 }
@@ -289,13 +291,13 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
             else -> first + 1
         }
         PdfSheet(onDismiss = { insertMenu = false }, dim = true) {
-            SheetTitle("Insert")
+            SheetTitle(jText("Insert", "إدراج"))
             val c = pdfColors
             for (option in listOf(false, true)) {
                 val label = when {
-                    first == null || last == null -> if (option) "At the end" else "At the start"
-                    option -> "After page ${last + 1}"
-                    else -> "Before page ${first + 1}"
+                    first == null || last == null -> if (option) jText("At the end", "في النهاية") else jText("At the start", "في البداية")
+                    option -> jText("After page ${last + 1}", "بعد الصفحة ${last + 1}")
+                    else -> jText("Before page ${first + 1}", "قبل الصفحة ${first + 1}")
                 }
                 Row(
                     Modifier.fillMaxWidth().clickable(role = Role.RadioButton) { after = option }.padding(horizontal = 12.dp, vertical = 2.dp),
@@ -309,9 +311,9 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
                 }
             }
             io.github.artcraftandroid.pdfcraft.ui.SheetDivider()
-            SheetRow(LucideIcons.File, "Blank page", { insertMenu = false; vm.runTool(doc, "page_insert_blank", mapOf("at" to at)) })
-            SheetRow(LucideIcons.FileStack, "From another file", { insertMenu = false; vm.pickInsertFile(doc, at) })
-            SheetRow(LucideIcons.Camera, "From a scan", { insertMenu = false; vm.insertScanAt = doc to at; vm.startScan() })
+            SheetRow(LucideIcons.File, jText("Blank page", "صفحة فارغة"), { insertMenu = false; vm.runTool(doc, "page_insert_blank", mapOf("at" to at)) })
+            SheetRow(LucideIcons.FileStack, jText("From another file", "من ملف آخر"), { insertMenu = false; vm.pickInsertFile(doc, at) })
+            SheetRow(LucideIcons.Camera, jText("From a scan", "من مسح ضوئي"), { insertMenu = false; vm.insertScanAt = doc to at; vm.startScan() })
             Spacer(Modifier.height(12.dp))
         }
     }

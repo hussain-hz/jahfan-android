@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -72,14 +74,14 @@ fun VoiceSheet(vm: AppViewModel, prompt: VoicePrompt) {
         player.release()
         if (!recorder.start()) {
             vm.voicePrompt = null
-            vm.tell("The microphone couldn't be started. Another app may be using it.")
+            vm.tell(jText("The microphone couldn't be started. Another app may be using it.", "تعذّر تشغيل الميكروفون. قد يستخدمه تطبيق آخر."))
         }
     }
 
     fun stop() = scope.launch {
         recorder.stop()
         recorded = player.load(file)
-        if (!recorded) vm.tell("Nothing was recorded.")
+        if (!recorded) vm.tell(jText("Nothing was recorded.", "لم يُسجّل شيء."))
     }
 
     fun close() {
@@ -103,27 +105,27 @@ fun VoiceSheet(vm: AppViewModel, prompt: VoicePrompt) {
     LaunchedEffect(recorder.elapsedMs >= VOICE_WARN_MS) {
         if (recorder.elapsedMs >= VOICE_WARN_MS && !warned) {
             warned = true
-            vm.tell("Recording stops at 30 minutes.")
+            vm.tell(jText("Recording stops at 30 minutes.", "يتوقف التسجيل بعد ٣٠ دقيقة."))
         }
     }
     DisposableEffect(prompt) { onDispose { player.release() } }
 
     PdfSheet(onDismiss = ::close, dim = true) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Record voice comment", color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(jText("Record voice comment", "تسجيل تعليق صوتي"), color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             TextButton(
                 onClick = {
                     player.release()
                     vm.postVoice(prompt, file)
                 },
                 enabled = recorded,
-            ) { Text("Post", color = if (recorded) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold) }
+            ) { Text(jText("Post", "نشر"), color = if (recorded) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold) }
         }
         Text(
             when {
-                recorder.recording -> "Recording…"
-                player.playing -> "Playing…"
-                recorded -> "Listen to your recording before posting it"
+                recorder.recording -> jText("Recording…", "جارٍ التسجيل…")
+                player.playing -> jText("Playing…", "جارٍ التشغيل…")
+                recorded -> jText("Listen to your recording before posting it", "استمع إلى تسجيلك قبل نشره")
                 else -> ""
             },
             color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 20.dp),
@@ -134,7 +136,7 @@ fun VoiceSheet(vm: AppViewModel, prompt: VoicePrompt) {
             Spacer(Modifier.height(8.dp))
             Text(clock(recorder.elapsedMs), color = c.text, fontSize = 15.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(12.dp))
-            RoundButton(LucideIcons.Square, "Stop recording", c.red, Modifier.align(Alignment.CenterHorizontally)) { if (recorder.recording) stop() }
+            RoundButton(LucideIcons.Square, jText("Stop recording", "إيقاف التسجيل"), c.red, Modifier.align(Alignment.CenterHorizontally)) { if (recorder.recording) stop() }
         } else {
             val progress = if (player.durationMs > 0) player.positionMs / player.durationMs.toFloat() else 0f
             Waveform(recorder.levels, progress, c.accent, c.divider, Modifier.padding(horizontal = 20.dp).pointerInput(Unit) {
@@ -144,13 +146,13 @@ fun VoiceSheet(vm: AppViewModel, prompt: VoicePrompt) {
             Text("${clock(player.positionMs.toLong())} / ${clock(player.durationMs.toLong())}", color = c.text, fontSize = 15.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                LabelledButton(LucideIcons.Trash2, "Delete") {
+                LabelledButton(LucideIcons.Trash2, jText("Delete", "حذف")) {
                     player.release()
                     file.delete()
                     vm.voicePrompt = null
                 }
-                RoundButton(if (player.playing) LucideIcons.Pause else LucideIcons.Play, if (player.playing) "Pause" else "Play", c.accent) { player.toggle() }
-                LabelledButton(LucideIcons.RotateCcw, "Record again") { begin() }
+                RoundButton(if (player.playing) LucideIcons.Pause else LucideIcons.Play, if (player.playing) jText("Pause", "إيقاف مؤقت") else jText("Play", "تشغيل"), c.accent) { player.toggle() }
+                LabelledButton(LucideIcons.RotateCcw, jText("Record again", "تسجيل مجددًا")) { begin() }
             }
         }
         Spacer(Modifier.height(20.dp))
@@ -220,12 +222,12 @@ fun VoiceCommentPlayer(vm: AppViewModel, doc: OpenDocument, comment: CommentInfo
     DisposableEffect(comment.page, comment.index) { onDispose { player.release() } }
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (ready == false) {
-            Text("This recording can't be played.", color = c.textSecondary, fontSize = 14.sp)
+            Text(jText("This recording can't be played.", "تعذّر تشغيل هذا التسجيل."), color = c.textSecondary, fontSize = 14.sp)
             return@Row
         }
         Box(
             Modifier.size(40.dp).clip(CircleShape).background(c.accent).clickable(enabled = ready == true, role = Role.Button) { player.toggle() }
-                .semantics { contentDescription = if (player.playing) "Pause" else "Play audio" },
+                .semantics { contentDescription = if (player.playing) jText("Pause", "إيقاف مؤقت") else jText("Play audio", "تشغيل الصوت") },
             contentAlignment = Alignment.Center,
         ) { Icon(if (player.playing) LucideIcons.Pause else LucideIcons.Play, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
         Spacer(Modifier.width(12.dp))
@@ -246,11 +248,11 @@ fun VoiceCommentPlayer(vm: AppViewModel, doc: OpenDocument, comment: CommentInfo
 @Composable
 fun MicRationaleDialog(vm: AppViewModel) {
     io.github.artcraftandroid.pdfcraft.ui.PdfDialog(
-        onDismiss = { vm.dismissMicRationale(false) }, title = "Use the microphone?",
-        confirm = "Open settings", onConfirm = { vm.dismissMicRationale(true) },
-        dismiss = "Not now", onDismissButton = { vm.dismissMicRationale(false) },
-    ) { Text("PdfCraft needs the microphone to record voice comments. You can allow it in the app's settings.", color = io.github.artcraftandroid.pdfcraft.ui.pdfColors.text, fontSize = 14.sp) }
+        onDismiss = { vm.dismissMicRationale(false) }, title = jText("Use the microphone?", "السماح باستخدام الميكروفون؟"),
+        confirm = jText("Open settings", "فتح الإعدادات"), onConfirm = { vm.dismissMicRationale(true) },
+        dismiss = jText("Not now", "ليس الآن"), onDismissButton = { vm.dismissMicRationale(false) },
+    ) { Text(jText("Jahfan needs the microphone to record voice comments. You can allow it in the app's settings.", "يحتاج جحفان إلى الميكروفون لتسجيل التعليقات الصوتية. يمكنك السماح بذلك من إعدادات التطبيق."), color = io.github.artcraftandroid.pdfcraft.ui.pdfColors.text, fontSize = 14.sp) }
 }
 
 /** A comment's type as the lists name it (a Sound comment is a voice comment here). */
-fun commentKindLabel(c: CommentInfo): String = if (c.subtype == "Sound") "Voice comment" else c.kind
+fun commentKindLabel(c: CommentInfo): String = if (c.subtype == "Sound") jText("Voice comment", "تعليق صوتي") else c.kind

@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -122,37 +124,37 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
         if (vm.authorPrompt) {
             var name by remember { mutableStateOf("") }
             PdfDialog(
-                onDismiss = { vm.authorPrompt = false }, title = "Your name on comments",
-                confirm = "Save", onConfirm = { vm.toolPrefs.author = name.trim(); vm.authorPrompt = false; vm.prefsChanged++ },
-                dismiss = "Skip",
+                onDismiss = { vm.authorPrompt = false }, title = jText("Your name on comments", "اسمك في التعليقات"),
+                confirm = jText("Save", "حفظ"), onConfirm = { vm.toolPrefs.author = name.trim(); vm.authorPrompt = false; vm.prefsChanged++ },
+                dismiss = jText("Skip", "تخطي"),
             ) {
-                Text("Add a name to show who made each comment. You can change it later in Preferences.", color = c.text, fontSize = 14.sp)
+                Text(jText("Add a name to show who made each comment. You can change it later in Preferences.", "أضف اسمًا يظهر في تعليقاتك. يمكنك تغييره لاحقًا في التفضيلات."), color = c.text, fontSize = 14.sp)
                 Spacer(Modifier.height(14.dp))
-                PdfField(name, { name = it }, "Your name")
+                PdfField(name, { name = it }, jText("Your name", "اسمك"))
             }
         }
         vm.readOnlyPrompt?.let { d ->
             PdfDialog(
-                onDismiss = { vm.answerReadOnly(null) }, title = "File is read-only",
-                confirm = "Save a copy", onConfirm = { vm.answerReadOnly(true) },
-                dismiss = "Discard", onDismissButton = { vm.answerReadOnly(false) },
-            ) { Text("Your changes to ${d.name} can't be saved where the file is. Save a copy to keep them.", color = c.text, fontSize = 14.sp) }
+                onDismiss = { vm.answerReadOnly(null) }, title = jText("File is read-only", "الملف للقراءة فقط"),
+                confirm = jText("Save a copy", "حفظ نسخة"), onConfirm = { vm.answerReadOnly(true) },
+                dismiss = jText("Discard", "تجاهل"), onDismissButton = { vm.answerReadOnly(false) },
+            ) { Text(jText("Your changes to ${d.name} can't be saved where the file is. Save a copy to keep them.", "تعذّر حفظ تغييراتك على ${d.name} في موقع الملف. احفظ نسخة للاحتفاظ بها."), color = c.text, fontSize = 14.sp) }
         }
         vm.linkPrompt?.let { url ->
             val shown = runCatching { android.net.Uri.parse(url).let { u -> "${u.scheme}://${u.host}${if (u.port > 0) ":${u.port}" else ""}" } }.getOrDefault(url)
-            PdfDialog(onDismiss = { vm.answerLink(false) }, title = "Open web page", confirm = "Open", onConfirm = { vm.answerLink(true) }) {
-                Text("Do you want to open the page at $shown?", color = c.text, fontSize = 14.sp)
+            PdfDialog(onDismiss = { vm.answerLink(false) }, title = jText("Open web page", "فتح صفحة ويب"), confirm = jText("Open", "فتح"), onConfirm = { vm.answerLink(true) }) {
+                Text(jText("Do you want to open the page at $shown?", "هل تريد فتح الصفحة على $shown؟"), color = c.text, fontSize = 14.sp)
             }
         }
         vm.confirmDeleteAllBookmarks?.let { d ->
             PdfDialog(
-                onDismiss = { vm.confirmDeleteAllBookmarks = null }, title = "Delete all bookmarks?",
-                confirm = "Delete all", onConfirm = { vm.confirmDeleteAllBookmarks = null; vm.deleteAllBookmarks(d) }, destructive = true,
-            ) { Text("All of this document's bookmarks are removed.", color = c.text, fontSize = 14.sp) }
+                onDismiss = { vm.confirmDeleteAllBookmarks = null }, title = jText("Delete all bookmarks?", "حذف جميع الإشارات المرجعية؟"),
+                confirm = jText("Delete all", "حذف الكل"), onConfirm = { vm.confirmDeleteAllBookmarks = null; vm.deleteAllBookmarks(d) }, destructive = true,
+            ) { Text(jText("All of this document's bookmarks are removed.", "ستُحذف جميع الإشارات المرجعية لهذا المستند."), color = c.text, fontSize = 14.sp) }
         }
         vm.readingModeBlocked?.let {
-            PdfDialog(onDismiss = { vm.readingModeBlocked = null }, title = "Reading Mode", confirm = "OK", onConfirm = { vm.readingModeBlocked = null }, dismiss = null) {
-                Text("Tools work on the page itself. Choose Continuous or Single page in View settings to use this one.", color = c.text, fontSize = 14.sp)
+            PdfDialog(onDismiss = { vm.readingModeBlocked = null }, title = jText("Reading Mode", "وضع القراءة"), confirm = jText("OK", "موافق"), onConfirm = { vm.readingModeBlocked = null }, dismiss = null) {
+                Text(jText("Tools work on the page itself. Choose Continuous or Single page in View settings to use this one.", "تعمل الأدوات على الصفحة نفسها. اختر العرض المتواصل أو الصفحة الواحدة من إعدادات العرض لاستخدام هذه الأداة."), color = c.text, fontSize = 14.sp)
             }
         }
         vm.busy?.let { message ->
@@ -174,14 +176,14 @@ private fun PasswordDialog(vm: AppViewModel, req: PasswordRequest) {
     var pw by remember(req) { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     LaunchedEffect(req) { runCatching { focus.requestFocus() } }
-    PdfDialog(onDismiss = { vm.answerPassword(null) }, title = "Enter password", confirm = "OK", onConfirm = { vm.answerPassword(pw) }) {
+    PdfDialog(onDismiss = { vm.answerPassword(null) }, title = jText("Enter password", "أدخل كلمة المرور"), confirm = jText("OK", "موافق"), onConfirm = { vm.answerPassword(pw) }) {
         Text(buildAnnotatedString {
             withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(req.file.name) }
-            append(" is protected. Please enter the password to open the document.")
+            append(jText(" is protected. Please enter the password to open the document.", " محمي. أدخل كلمة المرور لفتح المستند."))
         }, color = c.text, fontSize = 14.sp)
         Spacer(Modifier.height(14.dp))
         PdfField(
-            pw, { pw = it }, "Password", error = req.wrong && pw.isEmpty(), password = true, focus = focus,
+            pw, { pw = it }, jText("Password", "كلمة المرور"), error = req.wrong && pw.isEmpty(), password = true, focus = focus,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { if (pw.isNotEmpty()) vm.answerPassword(pw) }),
         )
@@ -198,8 +200,8 @@ private fun LicencesScreen(vm: AppViewModel) {
     val lucide = remember { runCatching { context.assets.open("licences/LICENSE-lucide.txt").bufferedReader().readText() }.getOrDefault("") }
     Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, "Back", { vm.showLicences = false }) }
-            Text("Open-source licences", color = c.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), { vm.showLicences = false }) }
+            Text(jText("Open-source licences", "تراخيص المصادر المفتوحة"), color = c.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             @Composable
@@ -207,14 +209,14 @@ private fun LicencesScreen(vm: AppViewModel) {
                 Text(name, color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp))
                 Text(licence, color = c.textSecondary, fontSize = 13.sp)
             }
-            entry("PdfCraft (engine and app)", "MIT OR Apache-2.0, by storytold and contributors")
+            entry(jText("PdfCraft (engine and app)", "PdfCraft (المحرك والتطبيق)"), "MIT OR Apache-2.0, by storytold and contributors")
             entry("UniFFI", "MPL-2.0, Mozilla")
             entry("JNA", "Apache-2.0")
             entry("AndroidX, Jetpack Compose, Kotlin coroutines", "Apache-2.0")
-            entry("Lucide icons", "ISC, Lucide Contributors")
-            entry("Inter typeface", "SIL Open Font License 1.1, The Inter Project Authors")
-            entry("Text recognition models (ocrs)", "CC-BY-SA-4.0, Robert Knight; trained on HierText")
-            entry("hayro, lopdf, boa and the engine's other Rust dependencies", "MIT, Apache-2.0 and compatible licences; see NOTICE in the source")
+            entry(jText("Lucide icons", "أيقونات Lucide"), "ISC, Lucide Contributors")
+            entry(jText("Inter typeface", "خط Inter"), "SIL Open Font License 1.1, The Inter Project Authors")
+            entry(jText("Text recognition models (ocrs)", "نماذج التعرّف على النص (ocrs)"), "CC-BY-SA-4.0, Robert Knight; trained on HierText")
+            entry(jText("hayro, lopdf, boa and the engine's other Rust dependencies", "hayro وlopdf وboa ومكتبات Rust الأخرى للمحرك"), "MIT, Apache-2.0 and compatible licences; see NOTICE in the source")
             Spacer(Modifier.height(20.dp))
             Text(lucide, color = c.textSecondary, fontSize = 11.sp)
             Spacer(Modifier.height(20.dp))

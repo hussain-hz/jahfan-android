@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -176,12 +178,12 @@ fun FieldTopBar(actions: FieldActions) {
         },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Reset", color = c.label, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+        Text(jText("Reset", "إعادة ضبط"), color = c.label, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
             modifier = Modifier.clickable { actions.reset() }.padding(horizontal = 28.dp, vertical = 14.dp))
         Spacer(Modifier.weight(1f))
-        BarIcon(LucideIcons.ChevronLeft, "Previous field", { actions.step(false) }, enabled = actions.canBack)
+        BarIcon(LucideIcons.ChevronLeft, jText("Previous field", "الحقل السابق"), { actions.step(false) }, enabled = actions.canBack)
         Spacer(Modifier.width(4.dp))
-        BarIcon(LucideIcons.ChevronRight, "Next field", { actions.step(true) }, enabled = actions.canForward)
+        BarIcon(LucideIcons.ChevronRight, jText("Next field", "الحقل التالي"), { actions.step(true) }, enabled = actions.canForward)
         Spacer(Modifier.width(16.dp))
     }
 }

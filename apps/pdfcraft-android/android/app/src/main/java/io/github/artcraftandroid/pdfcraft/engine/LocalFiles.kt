@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.engine
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -57,7 +59,7 @@ object LocalFiles {
         context.contentResolver.query(doc, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { c ->
             if (c.moveToFirst()) c.getString(0) else null
         }
-    }.getOrNull() ?: tree.lastPathSegment?.substringAfterLast(':')?.ifEmpty { null } ?: "Folder"
+    }.getOrNull() ?: tree.lastPathSegment?.substringAfterLast(':')?.ifEmpty { null } ?: jText("Folder", "مجلد")
 
     fun scan(context: Context): List<LocalPdf> {
         val resolver = context.contentResolver

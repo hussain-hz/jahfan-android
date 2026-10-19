@@ -370,10 +370,12 @@ fn signs_with_a_digital_id_and_trusts_its_signer() {
     let s = MobileSession::new();
     let dir = scratch();
     let id = dir.join("me.p12").to_string_lossy().into_owned();
-    let made = json!({ "name": "Test Signer", "email": "signer@example.com", "password": "secret1", "path": id });
+    let short = json!({ "name": "Test Signer", "password": "secret1", "path": id });
+    assert!(s.execute("sign_id_create".into(), short.to_string()).is_err(), "0.9.0 requires at least eight characters");
+    let made = json!({ "name": "Test Signer", "email": "signer@example.com", "password": "secret123", "path": id });
     s.execute("sign_id_create".into(), made.to_string()).unwrap();
     // the file's certificate, and a wrong password told apart
-    let info = digital_id_info(id.clone(), "secret1".into()).unwrap();
+    let info = digital_id_info(id.clone(), "secret123".into()).unwrap();
     assert_eq!(info.name, "Test Signer");
     assert_eq!(info.email.as_deref(), Some("signer@example.com"));
     assert!(info.self_signed && info.valid_to > info.valid_from && info.problem.is_none());
@@ -388,7 +390,7 @@ fn signs_with_a_digital_id_and_trusts_its_signer() {
     let doc = s.open(path.clone(), None).unwrap().id;
     assert!(s.signer_certificate(doc, "Signature1".into()).unwrap().is_none());
     let args =
-        json!({ "doc": doc, "id": id, "password": "secret1", "page": 1, "rect": [72, 72, 252, 122], "graphic": { "text": "Test" }, "out": path });
+        json!({ "doc": doc, "id": id, "password": "secret123", "page": 1, "rect": [72, 72, 252, 122], "graphic": { "text": "Test" }, "out": path });
     let out: Value = serde_json::from_str(&s.execute("sign_document".into(), args.to_string()).unwrap()).unwrap();
     let field = out["signature"]["field"].as_str().unwrap().to_string();
     assert_eq!(out["signature"]["status"], "unknown");
@@ -410,4 +412,33 @@ fn signs_with_a_digital_id_and_trusts_its_signer() {
     let list: Value = serde_json::from_str(&s.execute("sign_list".into(), json!({ "doc": doc }).to_string()).unwrap()).unwrap();
     assert_eq!(list["signatures"][0]["status"], "valid");
     assert_eq!(list["signatures"][0]["modification"], "allowed");
+}
+
+#[test]
+fn office_import_and_excel_export_survive_the_engine_upgrade() {
+    let s = MobileSession::new();
+    let dir = scratch();
+    let rtf = dir.join("source.rtf");
+    std::fs::write(&rtf, br"{\rtf1\ansi Hello from Jahfan\par Second paragraph}").unwrap();
+    let made: Value = serde_json::from_str(&s.execute("doc_create".into(), json!({"from": "office", "path": rtf}).to_string()).unwrap()).unwrap();
+    let doc = made["doc"].as_u64().unwrap();
+    assert!(!s.document(doc).unwrap().pages.is_empty());
+    let xlsx = dir.join("export.xlsx");
+    s.execute("doc_export_office".into(), json!({"doc": doc, "path": xlsx}).to_string()).unwrap();
+    let bytes = std::fs::read(&xlsx).unwrap();
+    assert!(bytes.starts_with(b"PK"));
+    assert!(bytes.windows(b"xl/workbook.xml".len()).any(|w| w == b"xl/workbook.xml"));
+    let saved = dir.join("saved.pdf");
+    s.execute("doc_save".into(), json!({"doc": doc, "path": saved}).to_string()).unwrap();
+    let reopened = s.open(saved.to_string_lossy().into_owned(), None).unwrap();
+    assert_eq!(reopened.pages.len(), 1);
+}
+
+#[test]
+fn scan_photo_detection_handles_unreadable_images() {
+    let s = MobileSession::new();
+    let photo = scratch().join("invalid.jpg");
+    std::fs::write(&photo, b"not a picture").unwrap();
+    let answer: Value = serde_json::from_str(&s.execute("photo_find_document".into(), json!({"path": photo}).to_string()).unwrap()).unwrap();
+    assert_eq!(answer["found"], false);
 }

@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.content.Context
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -10,13 +12,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
 /** The comment colours: 18 swatches in three rows of six (strong, light, greys), as measured on the reference. */
-val CommentPalette: List<Pair<Color, String>> = listOf(
-    Color(0xFF0000FF) to "Blue", Color(0xFF6AD928) to "Green", Color(0xFFFFD100) to "Yellow",
-    Color(0xFFFF7002) to "Orange", Color(0xFFE52237) to "Red", Color(0xFFA33086) to "Purple",
-    Color(0xFF38E5FF) to "Light blue", Color(0xFFC5FB72) to "Light green", Color(0xFFFCF485) to "Light yellow",
-    Color(0xFFFFC09E) to "Light orange", Color(0xFFFF809D) to "Pink", Color(0xFFFB88FF) to "Light purple",
-    Color(0xFFFFFFFF) to "White", Color(0xFFCCCCCC) to "Pale grey", Color(0xFFAAAAAA) to "Light grey",
-    Color(0xFF777777) to "Medium grey", Color(0xFF444444) to "Dark grey", Color(0xFF000000) to "Black",
+val CommentPalette: List<Pair<Color, String>> get() = listOf(
+    Color(0xFF0000FF) to jText("Blue", "أزرق"), Color(0xFF6AD928) to jText("Green", "أخضر"), Color(0xFFFFD100) to jText("Yellow", "أصفر"),
+    Color(0xFFFF7002) to jText("Orange", "برتقالي"), Color(0xFFE52237) to jText("Red", "أحمر"), Color(0xFFA33086) to jText("Purple", "بنفسجي"),
+    Color(0xFF38E5FF) to jText("Light blue", "أزرق فاتح"), Color(0xFFC5FB72) to jText("Light green", "أخضر فاتح"), Color(0xFFFCF485) to jText("Light yellow", "أصفر فاتح"),
+    Color(0xFFFFC09E) to jText("Light orange", "برتقالي فاتح"), Color(0xFFFF809D) to jText("Pink", "وردي"), Color(0xFFFB88FF) to jText("Light purple", "بنفسجي فاتح"),
+    Color(0xFFFFFFFF) to jText("White", "أبيض"), Color(0xFFCCCCCC) to jText("Pale grey", "رمادي باهت"), Color(0xFFAAAAAA) to jText("Light grey", "رمادي فاتح"),
+    Color(0xFF777777) to jText("Medium grey", "رمادي متوسط"), Color(0xFF444444) to jText("Dark grey", "رمادي داكن"), Color(0xFF000000) to jText("Black", "أسود"),
 )
 
 /** The seven ink widths of the stroke picker, in points. */

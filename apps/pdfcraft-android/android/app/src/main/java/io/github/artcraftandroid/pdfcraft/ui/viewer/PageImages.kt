@@ -123,7 +123,7 @@ class PageImages(
                     PageImage(r.key, img.toBitmap().asImageBitmap(), r.scale, r.tile?.x?.toInt() ?: 0, r.tile?.y?.toInt() ?: 0)
                 }
             } catch (e: Exception) {
-                Log.w("PdfCraft", "render of ${r.key} failed: ${e.message}")
+                Log.w("Jahfan", "render of ${r.key} failed: ${e.message}")
                 synchronized(lock) { failed.add(r.key) }
                 null
             } finally {

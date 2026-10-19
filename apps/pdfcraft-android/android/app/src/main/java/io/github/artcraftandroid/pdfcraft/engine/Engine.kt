@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.engine
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.graphics.Bitmap
 import io.github.artcraftandroid.pdfcraft.core.MobileException
 import io.github.artcraftandroid.pdfcraft.core.MobileSession
@@ -94,7 +96,7 @@ fun RenderedImage.toBitmap(): Bitmap {
 /** The user-facing message of an engine failure. */
 val Throwable.userMessage: String
     get() = when (this) {
-        is MobileException.NeedsPassword -> "This document is protected by a password."
-        is MobileException.WrongPassword -> "The password is incorrect."
-        else -> message?.takeIf { it.isNotBlank() } ?: "Something went wrong."
+        is MobileException.NeedsPassword -> jText("This document is protected by a password.", "هذا المستند محمي بكلمة مرور.")
+        is MobileException.WrongPassword -> jText("The password is incorrect.", "كلمة المرور غير صحيحة.")
+        else -> message?.takeIf { it.isNotBlank() } ?: jText("Something went wrong.", "حدث خطأ ما.")
     }

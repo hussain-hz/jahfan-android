@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.app.Activity
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
@@ -336,9 +338,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                         onShare = { vm.share(doc) },
                         onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
                         moreOpen = ctl.sheet == ViewerSheet.More,
-                        title = if (ctl.tool == ViewerTool.Edit) "Edit PDF" else null,
-                        undoLabel = if (doc.localUndo != null) "Drawing" else doc.info.undo,
-                        redoLabel = if (doc.localUndo != null) "Drawing" else doc.info.redo,
+                        title = if (ctl.tool == ViewerTool.Edit) jText("Edit PDF", "تحرير PDF") else null,
+                        undoLabel = if (doc.localUndo != null) jText("Drawing", "الرسم") else doc.info.undo,
+                        redoLabel = if (doc.localUndo != null) jText("Drawing", "الرسم") else doc.info.redo,
                     )
                 }
             }
@@ -360,10 +362,10 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                             onMoreTools = { ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools },
                             moreToolsOpen = ctl.sheet == ViewerSheet.MoreTools,
                             chips = listOf(
-                                QuickChip(if (vm.isStarred(doc)) "Unstar this file" else "Star this file", LucideIcons.Star, ToolHues.combine) { vm.toggleStar(doc) },
-                                QuickChip("Read aloud", LucideIcons.Headphones, ToolHues.read) { vm.startReadAloud(doc) },
-                                QuickChip("Create PDF", QuickTool.Create.icon, ToolHues.create) { vm.runQuickTool(doc, QuickTool.Create) },
-                                QuickChip("Organize pages", QuickTool.Organize.icon, ToolHues.organize) { vm.runQuickTool(doc, QuickTool.Organize) },
+                                QuickChip(if (vm.isStarred(doc)) jText("Unstar this file", "إلغاء تمييز هذا الملف") else jText("Star this file", "تمييز هذا الملف"), LucideIcons.Star, ToolHues.combine) { vm.toggleStar(doc) },
+                                QuickChip(jText("Read aloud", "القراءة بصوت عالٍ"), LucideIcons.Headphones, ToolHues.read) { vm.startReadAloud(doc) },
+                                QuickChip(jText("Create PDF", "إنشاء PDF"), QuickTool.Create.icon, ToolHues.create) { vm.runQuickTool(doc, QuickTool.Create) },
+                                QuickChip(jText("Organize pages", "تنظيم الصفحات"), QuickTool.Organize.icon, ToolHues.organize) { vm.runQuickTool(doc, QuickTool.Organize) },
                             ),
                             onExtraHeight = { quickExtraPx = it },
                         )
@@ -403,9 +405,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         vm.pageMenu?.takeIf { it.doc === doc }?.let { PageMenuView(vm, it) }
         if (vm.imageSource?.first === doc) {
             io.github.artcraftandroid.pdfcraft.ui.PdfSheet(onDismiss = { vm.imageSource = null }, dim = true) {
-                io.github.artcraftandroid.pdfcraft.ui.SheetTitle("Add image")
-                io.github.artcraftandroid.pdfcraft.ui.SheetRow(LucideIcons.Images, "From photos", { vm.addImageFrom(camera = false) })
-                io.github.artcraftandroid.pdfcraft.ui.SheetRow(LucideIcons.Camera, "From camera", { vm.addImageFrom(camera = true) })
+                io.github.artcraftandroid.pdfcraft.ui.SheetTitle(jText("Add image", "إضافة صورة"))
+                io.github.artcraftandroid.pdfcraft.ui.SheetRow(LucideIcons.Images, jText("From photos", "من الصور"), { vm.addImageFrom(camera = false) })
+                io.github.artcraftandroid.pdfcraft.ui.SheetRow(LucideIcons.Camera, jText("From camera", "من الكاميرا"), { vm.addImageFrom(camera = true) })
                 Spacer(Modifier.height(12.dp))
             }
         }
@@ -438,14 +440,14 @@ fun edgeTap(x: Float, width: Float): Int {
 
 private fun toolHint(tool: ViewerTool, markup: TextMarkup, doc: OpenDocument): String? = when (tool) {
     ViewerTool.Markup -> when (markup) {
-        TextMarkup.Highlight -> "Drag across the text to highlight it"
-        TextMarkup.Underline -> "Drag across the text to underline it"
-        TextMarkup.Strikethrough -> "Drag across the text to strike it through"
+        TextMarkup.Highlight -> jText("Drag across the text to highlight it", "اسحب فوق النص لتمييزه")
+        TextMarkup.Underline -> jText("Drag across the text to underline it", "اسحب فوق النص لوضع خط تحته")
+        TextMarkup.Strikethrough -> jText("Drag across the text to strike it through", "اسحب فوق النص لشطبه")
     }
-    ViewerTool.Draw -> "Draw with one finger, scroll with two"
-    ViewerTool.Comment -> "Tap where the comment goes"
-    ViewerTool.Text -> "Tap to add text"
-    ViewerTool.FillSign -> if (doc.info.fields > 0u) null else "Tap where you want to fill in text"
+    ViewerTool.Draw -> jText("Draw with one finger, scroll with two", "ارسم بإصبع واحد، ومرّر بإصبعين")
+    ViewerTool.Comment -> jText("Tap where the comment goes", "اضغط في موضع التعليق")
+    ViewerTool.Text -> jText("Tap to add text", "اضغط لإضافة نص")
+    ViewerTool.FillSign -> if (doc.info.fields > 0u) null else jText("Tap where you want to fill in text", "اضغط حيث تريد إدخال النص")
     else -> null
 }
 
@@ -614,11 +616,11 @@ private fun SuccessBannerView(b: io.github.artcraftandroid.pdfcraft.ui.SuccessBa
             Icon(LucideIcons.CircleCheck, null, tint = Color.White, modifier = Modifier.padding(top = 2.dp).size(22.dp))
             Spacer(Modifier.width(14.dp))
             Text(b.text, color = Color.White, fontSize = 17.sp, lineHeight = 22.sp, modifier = Modifier.weight(1f))
-            BarIcon(LucideIcons.X, "Close", onClose, tint = Color.White, size = 40.dp)
+            BarIcon(LucideIcons.X, jText("Close", "إغلاق"), onClose, tint = Color.White, size = 40.dp)
         }
         b.undo?.let { undo ->
             Text(
-                "Undo", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+                jText("Undo", "تراجع"), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.End).clickable { onClose(); undo() }.padding(horizontal = 24.dp, vertical = 12.dp),
             )
         }

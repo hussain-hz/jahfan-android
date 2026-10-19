@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.content.Context
 import android.content.Intent
 import android.speech.tts.TextToSpeech
@@ -146,7 +148,7 @@ class ReadAloud(
     private val tts: TextToSpeech = TextToSpeech(context.applicationContext) { status ->
         scope.launch {
             if (status != TextToSpeech.SUCCESS) {
-                problem = "Read aloud needs a text-to-speech voice on this phone."
+                problem = jText("Read aloud needs a text-to-speech voice on this phone.", "تتطلب القراءة بصوت عالٍ تثبيت صوت لتحويل النص إلى كلام على هذا الهاتف.")
                 return@launch
             }
             ready = true
@@ -455,12 +457,12 @@ fun BoxScope.ReadAloudBar(vm: io.github.artcraftandroid.pdfcraft.ui.AppViewModel
         ) {
             Box(
                 Modifier.size(40.dp).clip(CircleShape).background(c.pageCard).clickable(role = Role.Button) { expanded = true }
-                    .semantics { contentDescription = "Open the player" },
+                    .semantics { contentDescription = jText("Open the player", "فتح المشغّل") },
                 contentAlignment = Alignment.Center,
             ) { Icon(LucideIcons.ChevronUp, null, tint = c.label, modifier = Modifier.size(24.dp)) }
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                 SkipButton(back = true, size = 43.dp) { r.skip(false) }
-                PlayerButton(if (r.playing) LucideIcons.Pause else LucideIcons.Play, if (r.playing) "Pause" else if (r.finished) "Read again" else "Play", 43.dp) {
+                PlayerButton(if (r.playing) LucideIcons.Pause else LucideIcons.Play, if (r.playing) jText("Pause", "إيقاف مؤقت") else if (r.finished) jText("Read again", "قراءة مجددًا") else jText("Play", "تشغيل"), 43.dp) {
                     if (r.playing) r.pause() else r.play()
                 }
                 SkipButton(back = false, size = 43.dp) { r.skip(true) }
@@ -502,7 +504,7 @@ private fun SkipButton(back: Boolean, size: androidx.compose.ui.unit.Dp, iconSiz
     val c = pdfColors
     Box(
         Modifier.size(size).clip(CircleShape).clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = if (back) "Back 15 seconds" else "Forward 15 seconds" },
+            .semantics { contentDescription = if (back) jText("Back 15 seconds", "رجوع ١٥ ثانية") else jText("Forward 15 seconds", "تقديم ١٥ ثانية") },
         contentAlignment = Alignment.Center,
     ) {
         Icon(if (back) LucideIcons.RotateCcw else LucideIcons.RotateCw, null, tint = c.label, modifier = Modifier.size(iconSize))
@@ -559,7 +561,7 @@ private fun ReadAloudFull(vm: io.github.artcraftandroid.pdfcraft.ui.AppViewModel
             Box(Modifier.fillMaxWidth()) {
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).background(c.pageCard).clickable(role = Role.Button, onClick = onClose)
-                        .semantics { contentDescription = "Close the player" },
+                        .semantics { contentDescription = jText("Close the player", "إغلاق المشغّل") },
                     contentAlignment = Alignment.Center,
                 ) { Icon(LucideIcons.ChevronDown, null, tint = c.label, modifier = Modifier.size(22.dp)) }
             }
@@ -580,7 +582,7 @@ private fun ReadAloudFull(vm: io.github.artcraftandroid.pdfcraft.ui.AppViewModel
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 SkipButton(back = true, size = 58.dp, iconSize = 32.dp) { r.skip(false) }
                 Box(Modifier.size(80.dp).clip(CircleShape).background(c.divider), contentAlignment = Alignment.Center) {
-                    PlayerButton(if (r.playing) LucideIcons.Pause else LucideIcons.Play, if (r.playing) "Pause" else "Play", 80.dp, iconSize = 40.dp) {
+                    PlayerButton(if (r.playing) LucideIcons.Pause else LucideIcons.Play, if (r.playing) jText("Pause", "إيقاف مؤقت") else jText("Play", "تشغيل"), 80.dp, iconSize = 40.dp) {
                         if (r.playing) r.pause() else r.play()
                     }
                 }
@@ -593,7 +595,7 @@ private fun ReadAloudFull(vm: io.github.artcraftandroid.pdfcraft.ui.AppViewModel
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Icon(LucideIcons.AudioLines, null, tint = c.icon, modifier = Modifier.size(24.dp))
-                    Text("Voice", color = c.textSecondary, fontSize = 13.sp)
+                    Text(jText("Voice", "الصوت"), color = c.textSecondary, fontSize = 13.sp)
                 }
                 Box {
                     Text(speedLabel(r.speed), color = c.textSecondary, fontSize = 16.sp, modifier = Modifier.clickable { speeds = true }.padding(8.dp))
@@ -618,14 +620,14 @@ private fun LanguageSheet(r: ReadAloud, onVoiceSettings: () -> Unit, onDismiss: 
     val current = remember(langs, r.language) { languageIndex(langs, r.language) }
     val list = androidx.compose.foundation.lazy.rememberLazyListState(initialFirstVisibleItemIndex = (current - 2).coerceAtLeast(0))
     io.github.artcraftandroid.pdfcraft.ui.PdfSheet(onDismiss = onDismiss, dim = true) {
-        io.github.artcraftandroid.pdfcraft.ui.SheetTitle("Choose language")
+        io.github.artcraftandroid.pdfcraft.ui.SheetTitle(jText("Choose language", "اختيار اللغة"))
         androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 420.dp), state = list) {
             items(langs.size) { i ->
                 val l = langs[i]
                 io.github.artcraftandroid.pdfcraft.ui.SheetRow(null, l.getDisplayName(Locale.getDefault()), { r.chooseLanguage(l); onDismiss() }, checked = i == current)
             }
         }
-        io.github.artcraftandroid.pdfcraft.ui.SheetRow(LucideIcons.Settings, "Voice settings", onVoiceSettings)
+        io.github.artcraftandroid.pdfcraft.ui.SheetRow(LucideIcons.Settings, jText("Voice settings", "إعدادات الصوت"), onVoiceSettings)
         Spacer(Modifier.height(8.dp))
     }
 }

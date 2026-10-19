@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -106,9 +108,9 @@ fun ViewerTopBar(
     ) {
         Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
             if (toolActive && doneIsCheck) {
-                BarIcon(LucideIcons.Check, "Done", onBack, tint = c.toolAccent)
+                BarIcon(LucideIcons.Check, jText("Done", "تم"), onBack, tint = c.toolAccent)
             } else {
-                BarIcon(LucideIcons.ArrowLeft, "Back", onBack, iconSize = 27.dp)
+                BarIcon(LucideIcons.ArrowLeft, jText("Back", "رجوع"), onBack, iconSize = 27.dp)
             }
         }
         if (title != null) {
@@ -122,7 +124,7 @@ fun ViewerTopBar(
             BarDivider(height = 24.dp)
             Spacer(Modifier.width(14.dp))
             // with something to undo the reference shrinks the switch to a plain speaker button
-            if (canUndo && !readingAloud) BarIcon(LucideIcons.Volume2, "Read aloud", onReadAloud) else ReadAloudSwitch(readingAloud, onReadAloud)
+            if (canUndo && !readingAloud) BarIcon(LucideIcons.Volume2, jText("Read aloud", "القراءة بصوت عالٍ"), onReadAloud) else ReadAloudSwitch(readingAloud, onReadAloud)
         }
         Spacer(Modifier.weight(1f))
         // while reading aloud the bar holds only back and the switch, as the reference's
@@ -132,15 +134,15 @@ fun ViewerTopBar(
         }
         if (toolActive) {
             if (canUndo || canRedo) {
-                BarIcon(LucideIcons.Undo2, "Undo", onUndo, enabled = canUndo)
-                BarIcon(LucideIcons.Redo2, "Redo", onRedo, enabled = canRedo)
+                BarIcon(LucideIcons.Undo2, jText("Undo", "تراجع"), onUndo, enabled = canUndo)
+                BarIcon(LucideIcons.Redo2, jText("Redo", "إعادة"), onRedo, enabled = canRedo)
             }
         } else if (canUndo) {
             UndoMenuButton(canUndo, canRedo, onUndo, onRedo, undoLabel, redoLabel)
         }
-        if (onSearch != null) BarIcon(LucideIcons.Search, "Find in document", onSearch)
-        BarIcon(LucideIcons.Share2, "Share", onShare)
-        BarIcon(LucideIcons.EllipsisVertical, "More options", onMore, selected = moreOpen)
+        if (onSearch != null) BarIcon(LucideIcons.Search, jText("Find in document", "بحث في المستند"), onSearch)
+        BarIcon(LucideIcons.Share2, jText("Share", "مشاركة"), onShare)
+        BarIcon(LucideIcons.EllipsisVertical, jText("More options", "خيارات إضافية"), onMore, selected = moreOpen)
         Spacer(Modifier.width(10.dp))
     }
 }
@@ -152,7 +154,7 @@ fun UndoMenuButton(canUndo: Boolean, canRedo: Boolean, onUndo: () -> Unit, onRed
     var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Box {
         Box(
-            Modifier.size(46.dp).clickable(enabled = canUndo || canRedo, role = Role.Button) { open = true }.semantics { contentDescription = "Undo or redo" },
+            Modifier.size(46.dp).clickable(enabled = canUndo || canRedo, role = Role.Button) { open = true }.semantics { contentDescription = jText("Undo or redo", "تراجع أو إعادة") },
             contentAlignment = Alignment.Center,
         ) {
             val tint = if (canUndo || canRedo) c.icon else c.icon.copy(alpha = 0.38f)
@@ -164,11 +166,11 @@ fun UndoMenuButton(canUndo: Boolean, canRedo: Boolean, onUndo: () -> Unit, onRed
         }
         androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.menu) {
             androidx.compose.material3.DropdownMenuItem(
-                text = { Text(undoLabel?.let { "Undo $it" } ?: "Undo", color = c.text) }, enabled = canUndo,
+                text = { Text(undoLabel?.let { jText("Undo $it", "تراجع عن ${io.github.artcraftandroid.pdfcraft.ui.arabicEngineLabel(it)}") } ?: jText("Undo", "تراجع"), color = c.text) }, enabled = canUndo,
                 leadingIcon = { Icon(LucideIcons.Undo2, null, tint = c.icon) }, onClick = { open = false; onUndo() },
             )
             androidx.compose.material3.DropdownMenuItem(
-                text = { Text(redoLabel?.let { "Redo $it" } ?: "Redo", color = c.text) }, enabled = canRedo,
+                text = { Text(redoLabel?.let { jText("Redo $it", "إعادة ${io.github.artcraftandroid.pdfcraft.ui.arabicEngineLabel(it)}") } ?: jText("Redo", "إعادة"), color = c.text) }, enabled = canRedo,
                 leadingIcon = { Icon(LucideIcons.Redo2, null, tint = c.icon) }, onClick = { open = false; onRedo() },
             )
         }
@@ -182,7 +184,7 @@ private fun ReadAloudSwitch(on: Boolean, onToggle: () -> Unit) {
     val knob by androidx.compose.animation.core.animateDpAsState(if (on) 22.dp else 2.dp, label = "knob")
     val track by androidx.compose.animation.animateColorAsState(if (on) c.switchOn else c.switchOff, label = "track")
     Box(
-        Modifier.size(width = 56.dp, height = 40.dp).clickable(role = Role.Switch, onClick = onToggle).semantics { contentDescription = "Read aloud" },
+        Modifier.size(width = 56.dp, height = 40.dp).clickable(role = Role.Switch, onClick = onToggle).semantics { contentDescription = jText("Read aloud", "القراءة بصوت عالٍ") },
         contentAlignment = Alignment.CenterStart,
     ) {
         Box(Modifier.size(width = 56.dp, height = 28.dp).background(track, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))) {
@@ -222,7 +224,7 @@ fun SearchBar(
         }.padding(bottom = 1.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, "Collapse", onClose, iconSize = 27.dp) }
+        Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, jText("Collapse", "طي"), onClose, iconSize = 27.dp) }
         Box(
             Modifier.weight(1f).padding(horizontal = 8.dp).height(40.dp).drawBehind {
                 drawLine(c.textSecondary, Offset(0f, size.height - 1f), Offset(size.width, size.height - 1f), 1.5f)
@@ -240,18 +242,18 @@ fun SearchBar(
                     keyboard?.hide()
                     onSubmit()
                 }),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = "Find in document" },
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = jText("Find in document", "بحث في المستند") },
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) Text("Find in document", color = c.textSecondary, fontSize = 17.sp, fontStyle = FontStyle.Italic)
+                        if (query.isEmpty()) Text(jText("Find in document", "بحث في المستند"), color = c.textSecondary, fontSize = 17.sp, fontStyle = FontStyle.Italic)
                         inner()
                     }
                 },
             )
         }
-        BarIcon(LucideIcons.X, "Clear", onClear, size = 40.dp, enabled = query.isNotEmpty())
-        BarIcon(LucideIcons.ChevronLeft, "Previous", onPrev, enabled = canStep, size = 40.dp)
-        BarIcon(LucideIcons.ChevronRight, "Next", onNext, enabled = canStep, size = 40.dp)
+        BarIcon(LucideIcons.X, jText("Clear", "مسح"), onClear, size = 40.dp, enabled = query.isNotEmpty())
+        BarIcon(LucideIcons.ChevronLeft, jText("Previous", "السابق"), onPrev, enabled = canStep, size = 40.dp)
+        BarIcon(LucideIcons.ChevronRight, jText("Next", "التالي"), onNext, enabled = canStep, size = 40.dp)
         Spacer(Modifier.width(6.dp))
     }
 }
@@ -338,7 +340,7 @@ fun QuickToolbar(
             Box(
                 Modifier.fillMaxWidth().height(QuickHandleHeight)
                     .clickable(enabled = chips.isNotEmpty(), role = Role.Button) { open = !open }
-                    .semantics { contentDescription = if (open) "Hide shortcuts" else "Show shortcuts" },
+                    .semantics { contentDescription = if (open) jText("Hide shortcuts", "إخفاء الاختصارات") else jText("Show shortcuts", "إظهار الاختصارات") },
                 contentAlignment = Alignment.TopCenter,
             ) {
                 // measured on the dark bar; the light bar's grey is our own match
@@ -359,7 +361,7 @@ fun QuickToolbar(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 for (t in shown) QuickItem(t.icon, t.label, { onTool(t) }, subTools = t.subTools, width = itemW)
-                QuickItem(LucideIcons.LayoutGrid, "More tools", onMoreTools, selected = moreToolsOpen, width = itemW)
+                QuickItem(LucideIcons.LayoutGrid, jText("More tools", "المزيد من الأدوات"), onMoreTools, selected = moreToolsOpen, width = itemW)
             }
         }
     }
@@ -494,7 +496,7 @@ fun SubDivider() {
 fun ColorDot(color: androidx.compose.ui.graphics.Color, selected: Boolean, onClick: () -> Unit) {
     val c = pdfColors
     Box(
-        Modifier.width(36.dp).height(54.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = "Colour" },
+        Modifier.width(36.dp).height(54.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = jText("Colour", "اللون") },
         contentAlignment = Alignment.Center,
     ) {
         if (selected) Box(Modifier.requiredSize(40.dp).background(c.pressed, androidx.compose.foundation.shape.RoundedCornerShape(5.dp)))

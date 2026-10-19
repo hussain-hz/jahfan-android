@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import io.github.artcraftandroid.pdfcraft.ui.safeTopPadding
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -66,14 +68,14 @@ import java.io.File
 
 /** What a tap places in Fill & Sign. */
 enum class FillElement(val engineType: String, val label: String) {
-    Text("text", "Text"),
-    Cross("cross", "Cross"),
-    Check("check", "Checkmark"),
-    Dot("dot", "Dot"),
-    Box("box", "Rounded box"),
-    Line("line", "Line"),
-    Signature("signature", "Signature"),
-    Initials("initials", "Initials"),
+    Text("text", jText("Text", "نص")),
+    Cross("cross", jText("Cross", "علامة خطأ")),
+    Check("check", jText("Checkmark", "علامة صح")),
+    Dot("dot", jText("Dot", "نقطة")),
+    Box("box", jText("Rounded box", "مربع مستدير")),
+    Line("line", jText("Line", "خط")),
+    Signature("signature", jText("Signature", "التوقيع")),
+    Initials("initials", jText("Initials", "الأحرف الأولى")),
 }
 
 /** The saved signature and initials (PNG with transparency), kept in the app's private files. */
@@ -131,14 +133,14 @@ fun FillSignToolbar(vm: AppViewModel, doc: OpenDocument) {
     val sel = vm.fillElement
     SubToolbar {
         if (doc.info.fields == 0u) {
-            SubTextField("Add text", sel == FillElement.Text) { vm.fillElement = FillElement.Text }
-            SubTool(LucideIcons.X, "Add a cross", sel == FillElement.Cross, { vm.fillElement = FillElement.Cross })
-            SubTool(LucideIcons.Check, "Add a checkmark", sel == FillElement.Check, { vm.fillElement = FillElement.Check })
-            SubDot("Add a dot", sel == FillElement.Dot) { vm.fillElement = FillElement.Dot }
-            SubTool(LucideIcons.RectangleHorizontal, "Add a rounded box", sel == FillElement.Box, { vm.fillElement = FillElement.Box })
-            SubTool(LucideIcons.Minus, "Add a line", sel == FillElement.Line, { vm.fillElement = FillElement.Line })
+            SubTextField(jText("Add text", "إضافة نص"), sel == FillElement.Text) { vm.fillElement = FillElement.Text }
+            SubTool(LucideIcons.X, jText("Add a cross", "إضافة علامة خطأ"), sel == FillElement.Cross, { vm.fillElement = FillElement.Cross })
+            SubTool(LucideIcons.Check, jText("Add a checkmark", "إضافة علامة صح"), sel == FillElement.Check, { vm.fillElement = FillElement.Check })
+            SubDot(jText("Add a dot", "إضافة نقطة"), sel == FillElement.Dot) { vm.fillElement = FillElement.Dot }
+            SubTool(LucideIcons.RectangleHorizontal, jText("Add a rounded box", "إضافة مربع مستدير"), sel == FillElement.Box, { vm.fillElement = FillElement.Box })
+            SubTool(LucideIcons.Minus, jText("Add a line", "إضافة خط"), sel == FillElement.Line, { vm.fillElement = FillElement.Line })
         }
-        SubTool(LucideIcons.Signature, "Sign or add initials", sel == FillElement.Signature || sel == FillElement.Initials || doc.controller.signPanel, { doc.controller.signPanel = true })
+        SubTool(LucideIcons.Signature, jText("Sign or add initials", "توقيع أو إضافة الأحرف الأولى"), sel == FillElement.Signature || sel == FillElement.Initials || doc.controller.signPanel, { doc.controller.signPanel = true })
     }
 }
 
@@ -159,7 +161,7 @@ fun SignPanel(vm: AppViewModel, doc: OpenDocument, onDismiss: () -> Unit) {
                     if (file.isFile) {
                         vm.fillElement = if (initials) FillElement.Initials else FillElement.Signature
                         onDismiss()
-                        vm.tell("Tap where you want to place your $label")
+                        vm.tell(jText("Tap where you want to place your $label", "اضغط في الموضع الذي تريد وضع $label فيه"))
                     } else {
                         onDismiss()
                         vm.signaturePad = SignaturePad(initials, doc, null)
@@ -168,17 +170,17 @@ fun SignPanel(vm: AppViewModel, doc: OpenDocument, onDismiss: () -> Unit) {
             ) {
                 if (file.isFile) {
                     val bmp = remember(file.lastModified(), version) { BitmapFactory.decodeFile(file.absolutePath) }
-                    if (bmp != null) Image(bmp.asImageBitmap(), "Your $label", modifier = Modifier.weight(1f).height(44.dp).padding(start = 12.dp), alignment = Alignment.CenterStart)
-                    BarIcon(LucideIcons.Trash2, "Clear saved $label", { file.delete(); vm.signaturesChanged++ }, size = 40.dp)
+                    if (bmp != null) Image(bmp.asImageBitmap(), jText("Your $label", "$label الخاص بك"), modifier = Modifier.weight(1f).height(44.dp).padding(start = 12.dp), alignment = Alignment.CenterStart)
+                    BarIcon(LucideIcons.Trash2, jText("Clear saved $label", "مسح $label المحفوظ"), { file.delete(); vm.signaturesChanged++ }, size = 40.dp)
                 } else {
-                    Text(if (initials) "Add initials" else "Add signature", color = pdfColors.text, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(start = 22.dp))
+                    Text(if (initials) jText("Add initials", "إضافة الأحرف الأولى") else jText("Add signature", "إضافة توقيع"), color = pdfColors.text, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(start = 22.dp))
                     Icon(LucideIcons.Plus, null, tint = pdfColors.icon, modifier = Modifier.padding(end = 9.dp).size(24.dp))
                 }
             }
         }
         Spacer(Modifier.height(14.dp))
         // a certificate-based signature, which the reference's phone app doesn't have
-        SheetRow(LucideIcons.ShieldCheck, "Sign with a digital ID", { onDismiss(); vm.startCertPlacing(doc) }, chevron = true)
+        SheetRow(LucideIcons.ShieldCheck, jText("Sign with a digital ID", "التوقيع باستخدام هوية رقمية"), { onDismiss(); vm.startCertPlacing(doc) }, chevron = true)
         Spacer(Modifier.height(10.dp))
     }
 }
@@ -222,22 +224,22 @@ fun SignaturePadScreen(vm: AppViewModel, pad: SignaturePad, onPickImage: () -> U
     val imported = vm.importedSignature
     Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { vm.signaturePad = null; vm.importedSignature = null }) { Text("Cancel", color = c.accent) }
-            Text(if (pad.initials) "Create initials" else "Create signature", color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            TextButton(onClick = { vm.signaturePad = null; vm.importedSignature = null }) { Text(jText("Cancel", "إلغاء"), color = c.accent) }
+            Text(if (pad.initials) jText("Create initials", "إنشاء الأحرف الأولى") else jText("Create signature", "إنشاء توقيع"), color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             TextButton(
                 onClick = {
                     val bmp = imported ?: renderStrokes(strokes, size, ink)
                     if (bmp == null) {
-                        vm.tell(if (pad.initials) "Draw your initials first" else "Draw your signature first")
+                        vm.tell(if (pad.initials) jText("Draw your initials first", "ارسم أحرفك الأولى أولًا") else jText("Draw your signature first", "ارسم توقيعك أولًا"))
                     } else {
                         vm.finishSignature(pad, bmp, save)
                     }
                 },
-            ) { Text("Done", color = c.accent, fontWeight = FontWeight.SemiBold) }
+            ) { Text(jText("Done", "تم"), color = c.accent, fontWeight = FontWeight.SemiBold) }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TabChip("Draw", imported == null) { vm.importedSignature = null }
-            TabChip("Image", imported != null) { onPickImage() }
+            TabChip(jText("Draw", "رسم"), imported == null) { vm.importedSignature = null }
+            TabChip(jText("Image", "صورة"), imported != null) { onPickImage() }
         }
         Box(
             Modifier.fillMaxWidth().weight(1f).padding(16.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).border(1.dp, c.divider, RoundedCornerShape(8.dp))
@@ -266,13 +268,13 @@ fun SignaturePadScreen(vm: AppViewModel, pad: SignaturePad, onPickImage: () -> U
                     }
                 }
                 if (strokes.isEmpty()) {
-                    Text(if (pad.initials) "Draw your initials here" else "Draw your signature here", color = Color(0xFF8A8A8A), modifier = Modifier.align(Alignment.Center))
+                    Text(if (pad.initials) jText("Draw your initials here", "ارسم أحرفك الأولى هنا") else jText("Draw your signature here", "ارسم توقيعك هنا"), color = Color(0xFF8A8A8A), modifier = Modifier.align(Alignment.Center))
                 }
             }
-            Text("Clear", color = c.accent, modifier = Modifier.align(Alignment.TopEnd).clickable { strokes.clear(); vm.importedSignature = null }.padding(12.dp))
+            Text(jText("Clear", "مسح"), color = c.accent, modifier = Modifier.align(Alignment.TopEnd).clickable { strokes.clear(); vm.importedSignature = null }.padding(12.dp))
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Save to device", color = c.text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            Text(jText("Save to device", "حفظ على الجهاز"), color = c.text, fontSize = 15.sp, modifier = Modifier.weight(1f))
             Switch(checked = save, onCheckedChange = { save = it }, colors = SwitchDefaults.colors(checkedTrackColor = c.accent))
         }
         Spacer(Modifier.height(8.dp))
@@ -343,10 +345,10 @@ fun androidx.compose.foundation.layout.BoxScope.FillElementMenu(vm: AppViewModel
             Modifier.background(colors.surface, RoundedCornerShape(8.dp)).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BarIcon(LucideIcons.AArrowDown, "Smaller", { vm.scaleFill(doc, c, 1f / 1.2f) })
-            BarIcon(LucideIcons.AArrowUp, "Bigger", { vm.scaleFill(doc, c, 1.2f) })
-            BarIcon(LucideIcons.Palette, "Colour", { palette = !palette }, selected = palette)
-            BarIcon(LucideIcons.Trash2, "Delete", { vm.selectedFill = null; vm.deleteComment(doc, c) }, tint = colors.red)
+            BarIcon(LucideIcons.AArrowDown, jText("Smaller", "أصغر"), { vm.scaleFill(doc, c, 1f / 1.2f) })
+            BarIcon(LucideIcons.AArrowUp, jText("Bigger", "أكبر"), { vm.scaleFill(doc, c, 1.2f) })
+            BarIcon(LucideIcons.Palette, jText("Colour", "اللون"), { palette = !palette }, selected = palette)
+            BarIcon(LucideIcons.Trash2, jText("Delete", "حذف"), { vm.selectedFill = null; vm.deleteComment(doc, c) }, tint = colors.red)
         }
         if (palette) {
             Row(Modifier.padding(top = 6.dp).background(colors.surface, RoundedCornerShape(8.dp)).padding(8.dp)) {

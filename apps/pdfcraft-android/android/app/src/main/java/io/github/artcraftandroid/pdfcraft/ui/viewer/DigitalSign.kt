@@ -1,5 +1,6 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -132,17 +133,19 @@ fun parseSignatures(o: JSONObject): List<SignatureEntry> {
 class CertTarget(val doc: OpenDocument, val field: String?, val page: Int, val rect: FloatArray?)
 
 /** What a digital signature shows on the page beside the signer's details. */
-enum class CertLook(val label: String) { Name("Name only"), Typed("Typed name"), Drawn("My signature") }
+enum class CertLook(private val labelText: () -> String) { Name({ jText("Name only", "الاسم فقط") }), Typed({ jText("Typed name", "اسم مكتوب") }), Drawn({ jText("My signature", "توقيعي") });
+    val label: String get() = labelText()
+ }
 
 /** A digital ID file picked to add, waiting for its password ([wrong]: the last one didn't open it). */
 class IdImport(val file: java.io.File, val name: String, val wrong: Boolean)
 
 /** A signature's status in a few words, for the list and the message on opening. */
 fun SignatureEntry.statusLabel(): String = when {
-    !signed -> "Not signed yet"
-    status == "valid" -> "Valid"
-    status == "invalid" -> "Invalid"
-    else -> "Signer not verified"
+    !signed -> jText("Not signed yet", "لم يُوقّع بعد")
+    status == "valid" -> jText("Valid", "صالح")
+    status == "invalid" -> jText("Invalid", "غير صالح")
+    else -> jText("Signer not verified", "لم يتم التحقق من الموقّع")
 }
 
 private val ValidGreen = Color(0xFF12805C)
@@ -210,8 +213,8 @@ fun CertPlaceLayer(vm: AppViewModel, doc: OpenDocument) {
                 .clip(RoundedCornerShape(8.dp)).background(c.surface).padding(start = 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Drag a box where the signature goes", color = c.text, fontSize = 14.sp, modifier = Modifier.weight(1f, fill = false))
-            TextButton(onClick = { vm.certPlacing = null }) { Text("Cancel", color = c.accent) }
+            Text(jText("Drag a box where the signature goes", "اسحب لرسم مربع في موضع التوقيع"), color = c.text, fontSize = 14.sp, modifier = Modifier.weight(1f, fill = false))
+            TextButton(onClick = { vm.certPlacing = null }) { Text(jText("Cancel", "إلغاء"), color = c.accent) }
         }
     }
 }
@@ -250,25 +253,25 @@ fun CertSignScreen(vm: AppViewModel, target: CertTarget) {
     }
     Column(Modifier.fillMaxSize().background(c.surface).pointerInput(Unit) { detectTapGestures() }.safeTopPadding().navigationBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { vm.certSign = null }) { Text("Cancel", color = c.accent) }
-            Text("Sign with a digital ID", color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            TextButton(onClick = ::sign, enabled = canSign) { Text("Sign", color = if (canSign) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold) }
+            TextButton(onClick = { vm.certSign = null }) { Text(jText("Cancel", "إلغاء"), color = c.accent) }
+            Text(jText("Sign with a digital ID", "التوقيع باستخدام هوية رقمية"), color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            TextButton(onClick = ::sign, enabled = canSign) { Text(jText("Sign", "توقيع"), color = if (canSign) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold) }
         }
         SheetDivider(inset = 0.dp)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-            Section("Digital ID")
+            Section(jText("Digital ID", "الهوية الرقمية"))
             if (ids.isEmpty()) {
                 Text(
-                    "You don't have a digital ID yet. Add the .p12 or .pfx file you were given, or create one for yourself.",
+                    jText("You don't have a digital ID yet. Add the .p12 or .pfx file you were given, or create one for yourself.", "ليست لديك هوية رقمية بعد. أضف ملف ‎.p12 أو ‎.pfx الذي حصلت عليه، أو أنشئ هوية لنفسك."),
                     color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                 )
             }
             for (id in ids) IdRow(vm, id, selected = id == chosen) { vm.chosenId = id }
-            SheetRow(LucideIcons.FolderOpen, "Add a digital ID file", { vm.pickDigitalId() })
-            SheetRow(LucideIcons.Plus, "Create a digital ID", { vm.idCreate = true })
+            SheetRow(LucideIcons.FolderOpen, jText("Add a digital ID file", "إضافة ملف هوية رقمية"), { vm.pickDigitalId() })
+            SheetRow(LucideIcons.Plus, jText("Create a digital ID", "إنشاء هوية رقمية"), { vm.idCreate = true })
             SheetDivider(vertical = 6.dp)
 
-            Section("Appearance")
+            Section(jText("Appearance", "المظهر"))
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (l in CertLook.entries) {
                     val enabled = l != CertLook.Drawn || hasDrawn
@@ -277,26 +280,26 @@ fun CertSignScreen(vm: AppViewModel, target: CertTarget) {
             }
             Text(
                 when (look) {
-                    CertLook.Name -> "Your name and the date in the box."
-                    CertLook.Typed -> "Your name in a script font, with your name and the date beside it."
-                    CertLook.Drawn -> if (hasDrawn) "Your saved Fill & Sign signature, with your name and the date beside it." else "Make a signature in Fill & Sign first."
+                    CertLook.Name -> jText("Your name and the date in the box.", "اسمك والتاريخ داخل المربع.")
+                    CertLook.Typed -> jText("Your name in a script font, with your name and the date beside it.", "اسمك بخط زخرفي، وبجانبه اسمك والتاريخ.")
+                    CertLook.Drawn -> if (hasDrawn) jText("Your saved Fill & Sign signature, with your name and the date beside it.", "توقيعك المحفوظ في التعبئة والتوقيع، وبجانبه اسمك والتاريخ.") else jText("Make a signature in Fill & Sign first.", "أنشئ توقيعًا في التعبئة والتوقيع أولًا.")
                 },
                 color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
             SheetDivider(vertical = 6.dp)
 
-            Section("Reason (optional)")
-            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(reason, { reason = it }, "For example: I approve this document", keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)) }
+            Section(jText("Reason (optional)", "السبب (اختياري)"))
+            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(reason, { reason = it }, jText("For example: I approve this document", "مثلًا: أوافق على هذا المستند"), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)) }
             Spacer(Modifier.height(12.dp))
-            Section("Location (optional)")
-            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(location, { location = it }, "City or place", keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)) }
+            Section(jText("Location (optional)", "الموقع (اختياري)"))
+            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(location, { location = it }, jText("City or place", "المدينة أو المكان"), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)) }
             Spacer(Modifier.height(12.dp))
 
             if (chosen != null) {
-                Section("Password for ${chosen.name}")
+                Section(jText("Password for ${chosen.name}", "كلمة مرور ${chosen.name}"))
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     PdfField(
-                        password, { password = it; vm.certSignError = null }, "Digital ID password", password = true, error = vm.certSignError != null,
+                        password, { password = it; vm.certSignError = null }, jText("Digital ID password", "كلمة مرور الهوية الرقمية"), password = true, error = vm.certSignError != null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                         keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { sign() }),
                     )
@@ -304,7 +307,7 @@ fun CertSignScreen(vm: AppViewModel, target: CertTarget) {
             }
             (vm.certSignError ?: unusable)?.let { Text(it, color = c.red, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
             Text(
-                "Signing saves the document. Anyone who opens it can check that it hasn't changed since; changes made after signing are listed with the signature.",
+                jText("Signing saves the document. Anyone who opens it can check that it hasn't changed since; changes made after signing are listed with the signature.", "يؤدي التوقيع إلى حفظ المستند. يمكن لمن يفتحه التحقق من سلامته، وتظهر التغييرات اللاحقة ضمن تفاصيل التوقيع."),
                 color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
         }
@@ -313,8 +316,8 @@ fun CertSignScreen(vm: AppViewModel, target: CertTarget) {
 
 /** Why [id] can't sign now, if it can't. */
 private fun idProblem(id: DigitalId): String? = when {
-    id.expired() -> "This digital ID expired on ${shortDate(id.validTo * 1000)}."
-    id.notYetValid() -> "This digital ID isn't valid until ${shortDate(id.validFrom * 1000)}."
+    id.expired() -> jText("This digital ID expired on ${shortDate(id.validTo * 1000)}.", "انتهت صلاحية هذه الهوية الرقمية في ${shortDate(id.validTo * 1000)}.")
+    id.notYetValid() -> jText("This digital ID isn't valid until ${shortDate(id.validFrom * 1000)}.", "تبدأ صلاحية هذه الهوية الرقمية في ${shortDate(id.validFrom * 1000)}.")
     else -> null
 }
 
@@ -356,17 +359,17 @@ private fun IdRow(vm: AppViewModel, id: DigitalId, selected: Boolean, onClick: (
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
             Text(id.name, color = c.text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val by = if (id.selfSigned) "Self-signed" else "Issued by ${id.issuer}"
-            val until = idProblem(id) ?: "Valid until ${shortDate(id.validTo * 1000)}"
+            val by = if (id.selfSigned) jText("Self-signed", "موقّعة ذاتيًا") else jText("Issued by ${id.issuer}", "صادرة عن ${id.issuer}")
+            val until = idProblem(id) ?: jText("Valid until ${shortDate(id.validTo * 1000)}", "صالحة حتى ${shortDate(id.validTo * 1000)}")
             Text("$by · $until", color = if (idProblem(id) != null) c.red else c.textSecondary, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        BarIcon(LucideIcons.Trash2, "Remove ${id.name}'s digital ID", { confirm = true }, size = 40.dp)
+        BarIcon(LucideIcons.Trash2, jText("Remove ${id.name}'s digital ID", "إزالة الهوية الرقمية لـ ${id.name}"), { confirm = true }, size = 40.dp)
     }
     if (confirm) {
         PdfDialog(
-            onDismiss = { confirm = false }, title = "Remove digital ID?", confirm = "Remove", destructive = true,
+            onDismiss = { confirm = false }, title = jText("Remove digital ID?", "إزالة الهوية الرقمية؟"), confirm = jText("Remove", "إزالة"), destructive = true,
             onConfirm = { confirm = false; vm.removeDigitalId(id) },
-        ) { Text("${id.name}'s digital ID is removed from PdfCraft. Documents already signed with it keep their signatures.", color = c.text, fontSize = 14.sp) }
+        ) { Text(jText("${id.name}'s digital ID is removed from Jahfan. Documents already signed with it keep their signatures.", "ستُزال الهوية الرقمية لـ ${id.name} من جحفان. تحتفظ المستندات الموقّعة مسبقًا بتوقيعاتها."), color = c.text, fontSize = 14.sp) }
     }
 }
 
@@ -377,15 +380,15 @@ fun IdPasswordDialog(vm: AppViewModel, imp: IdImport) {
     var pw by remember(imp) { mutableStateOf("") }
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
     androidx.compose.runtime.LaunchedEffect(imp) { runCatching { focus.requestFocus() } }
-    PdfDialog(onDismiss = { vm.answerIdImport(null) }, title = "Digital ID password", confirm = "Add", onConfirm = { vm.answerIdImport(pw) }) {
-        Text("Enter the password that protects ${imp.name}.", color = c.text, fontSize = 14.sp)
+    PdfDialog(onDismiss = { vm.answerIdImport(null) }, title = jText("Digital ID password", "كلمة مرور الهوية الرقمية"), confirm = jText("Add", "إضافة"), onConfirm = { vm.answerIdImport(pw) }) {
+        Text(jText("Enter the password that protects ${imp.name}.", "أدخل كلمة المرور التي تحمي ${imp.name}."), color = c.text, fontSize = 14.sp)
         Spacer(Modifier.height(14.dp))
         PdfField(
-            pw, { pw = it }, "Password", error = imp.wrong, password = true, focus = focus,
+            pw, { pw = it }, jText("Password", "كلمة المرور"), error = imp.wrong, password = true, focus = focus,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { vm.answerIdImport(pw) }),
         )
-        if (imp.wrong) Text("The password is incorrect.", color = c.red, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        if (imp.wrong) Text(jText("The password is incorrect.", "كلمة المرور غير صحيحة."), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -401,43 +404,43 @@ fun CreateIdScreen(vm: AppViewModel) {
     var again by remember { mutableStateOf("") }
     val problem = when {
         name.isBlank() -> null
-        password.isNotEmpty() && password.length < 6 -> "The password needs at least 6 characters."
-        again.isNotEmpty() && again != password -> "The passwords don't match."
+        password.isNotEmpty() && password.length < 8 -> jText("The password needs at least 8 characters.", "يجب ألا تقل كلمة المرور عن 8 أحرف.")
+        again.isNotEmpty() && again != password -> jText("The passwords don't match.", "كلمتا المرور غير متطابقتين.")
         else -> null
     }
-    val ok = name.isNotBlank() && password.length >= 6 && again == password
+    val ok = name.isNotBlank() && password.length >= 8 && again == password
     Column(Modifier.fillMaxSize().background(c.surface).pointerInput(Unit) { detectTapGestures() }.safeTopPadding().navigationBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { vm.idCreate = false }) { Text("Cancel", color = c.accent) }
-            Text("Create a digital ID", color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            TextButton(onClick = { vm.idCreate = false }) { Text(jText("Cancel", "إلغاء"), color = c.accent) }
+            Text(jText("Create a digital ID", "إنشاء هوية رقمية"), color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             TextButton(onClick = { vm.createDigitalId(name, email, organization, password) }, enabled = ok) {
-                Text("Create", color = if (ok) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold)
+                Text(jText("Create", "إنشاء"), color = if (ok) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold)
             }
         }
         SheetDivider(inset = 0.dp)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             Text(
-                "A digital ID made here is self-signed: a document you sign with it shows any change made after you signed, but nobody else vouches that it's you. " +
-                    "For that, use the ID file an organisation or a certificate authority gives you.",
+                jText("A digital ID made here is self-signed: a document you sign with it shows any change made after you signed, but nobody else vouches that it's you. ", "الهوية المنشأة هنا موقّعة ذاتيًا: يكشف توقيعها أي تغيير لاحق في المستند، لكنه لا يثبت هويتك بواسطة جهة خارجية. ") +
+                    jText("For that, use the ID file an organisation or a certificate authority gives you.", "لإثبات الهوية استخدم ملف هوية من مؤسسة أو جهة إصدار شهادات."),
                 color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
-            Section("Name")
-            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(name, { name = it }, "Your name") }
-            Section("Email (optional)")
+            Section(jText("Name", "الاسم"))
+            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(name, { name = it }, jText("Your name", "اسمك")) }
+            Section(jText("Email (optional)", "البريد الإلكتروني (اختياري)"))
             Box(Modifier.padding(horizontal = 16.dp)) { PdfField(email, { email = it }, "name@example.com", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)) }
-            Section("Organisation (optional)")
-            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(organization, { organization = it }, "Company or organisation") }
-            Section("Password")
+            Section(jText("Organisation (optional)", "المؤسسة (اختياري)"))
+            Box(Modifier.padding(horizontal = 16.dp)) { PdfField(organization, { organization = it }, jText("Company or organisation", "الشركة أو المؤسسة")) }
+            Section(jText("Password", "كلمة المرور"))
             Box(Modifier.padding(horizontal = 16.dp)) {
-                PdfField(password, { password = it }, "At least 6 characters", password = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                PdfField(password, { password = it }, jText("At least 8 characters", "8 أحرف على الأقل"), password = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
             }
             Spacer(Modifier.height(10.dp))
             Box(Modifier.padding(horizontal = 16.dp)) {
-                PdfField(again, { again = it }, "The password again", password = true, error = again.isNotEmpty() && again != password, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done))
+                PdfField(again, { again = it }, jText("The password again", "أعد كتابة كلمة المرور"), password = true, error = again.isNotEmpty() && again != password, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done))
             }
             problem?.let { Text(it, color = c.red, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
             Text(
-                "PdfCraft doesn't keep the password and can't recover it: you type it each time you sign.",
+                jText("Jahfan doesn't keep the password and can't recover it: you type it each time you sign.", "لا يحتفظ جحفان بكلمة المرور ولا يمكنه استعادتها؛ أدخلها عند كل توقيع."),
                 color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
         }
@@ -448,8 +451,8 @@ fun CreateIdScreen(vm: AppViewModel) {
 @Composable
 fun SignFieldChoiceDialog(vm: AppViewModel, doc: OpenDocument, field: io.github.artcraftandroid.pdfcraft.core.WidgetInfo) {
     PdfDialog(onDismiss = { vm.signFieldChoice = null }, title = null, confirm = null, dismiss = null, list = true) {
-        SheetRow(LucideIcons.Signature, "Add your signature", { vm.signFieldChoice = null; vm.drawSignatureInField(doc, field) })
-        SheetRow(LucideIcons.ShieldCheck, "Sign with a digital ID", { vm.signFieldChoice = null; vm.signFieldWithId(doc, field) })
+        SheetRow(LucideIcons.Signature, jText("Add your signature", "إضافة توقيعك"), { vm.signFieldChoice = null; vm.drawSignatureInField(doc, field) })
+        SheetRow(LucideIcons.ShieldCheck, jText("Sign with a digital ID", "التوقيع باستخدام هوية رقمية"), { vm.signFieldChoice = null; vm.signFieldWithId(doc, field) })
     }
 }
 
@@ -469,11 +472,11 @@ fun SignaturesSheet(vm: AppViewModel, doc: OpenDocument) {
     vm.trustedCerts.version
     var open by remember { mutableStateOf<String?>(null) }
     PdfSheet(onDismiss = ::close, maxHeightFraction = 0.85f) {
-        SheetTitle("Signatures")
+        SheetTitle(jText("Signatures", "التوقيعات"))
         Column(Modifier.verticalScroll(rememberScrollState())) {
             val list = doc.signatures
             if (list.isEmpty()) {
-                Text("This document has no signatures.", color = c.textSecondary, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
+                Text(jText("This document has no signatures.", "لا توجد توقيعات في هذا المستند."), color = c.textSecondary, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
             }
             for (s in list) {
                 val (icon, tint) = statusIcon(s)
@@ -484,12 +487,12 @@ fun SignaturesSheet(vm: AppViewModel, doc: OpenDocument) {
                     Icon(icon, null, tint = tint, modifier = Modifier.padding(top = 2.dp).size(24.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(if (s.signed) s.signer ?: "Unknown signer" else "Empty signature field", color = c.text, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(if (s.signed) s.signer ?: jText("Unknown signer", "موقّع غير معروف") else jText("Empty signature field", "حقل توقيع فارغ"), color = c.text, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         val sub = listOfNotNull(
                             s.statusLabel(),
-                            if (s.certify != null && s.signed) "Certified" else null,
+                            if (s.certify != null && s.signed) jText("Certified", "معتمد") else null,
                             pdfDateLabel(s.date),
-                            s.page?.let { "Page ${it + 1}" }.takeIf { !s.signed },
+                            s.page?.let { jText("Page ${it + 1}", "الصفحة ${it + 1}") }.takeIf { !s.signed },
                         ).joinToString(" · ")
                         Text(sub, color = if (s.status == "invalid") c.red else c.textSecondary, fontSize = 13.sp)
                         if (open == s.field) SignatureDetails(vm, doc, s)
@@ -498,7 +501,7 @@ fun SignaturesSheet(vm: AppViewModel, doc: OpenDocument) {
                 }
                 SheetDivider()
             }
-            SheetRow(LucideIcons.ShieldCheck, "Add a digital signature", { close(); vm.startCertPlacing(doc) })
+            SheetRow(LucideIcons.ShieldCheck, jText("Add a digital signature", "إضافة توقيع رقمي"), { close(); vm.startCertPlacing(doc) })
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -514,44 +517,44 @@ private fun SignatureDetails(vm: AppViewModel, doc: OpenDocument, s: SignatureEn
     }
     Column(Modifier.padding(top = 4.dp)) {
         if (s.signed) {
-            line("Reason", s.reason)
-            line("Location", s.location)
+            line(jText("Reason", "السبب"), s.reason)
+            line(jText("Location", "الموقع"), s.location)
             s.cert?.let { cert ->
-                line("Certificate", if (cert.selfSigned) "self-signed" else "issued by ${cert.issuer}")
-                line("Valid until", pdfDateLabel(cert.validTo))
+                line(jText("Certificate", "الشهادة"), if (cert.selfSigned) "self-signed" else jText("issued by ${cert.issuer}", "صادرة عن ${cert.issuer}"))
+                line(jText("Valid until", "صالحة حتى"), pdfDateLabel(cert.validTo))
             }
             s.certify?.let {
-                line("Certified", when (it) { 1 -> "no changes allowed"; 2 -> "form filling allowed"; else -> "form filling and comments allowed" })
+                line(jText("Certified", "معتمد"), when (it) { 1 -> jText("no changes allowed", "لا يُسمح بأي تغييرات"); 2 -> jText("form filling allowed", "يُسمح بتعبئة النماذج"); else -> jText("form filling and comments allowed", "يُسمح بتعبئة النماذج والتعليقات") })
             }
             line(
-                "Changes since signing",
+                jText("Changes since signing", "التغييرات منذ التوقيع"),
                 when (s.modification) {
                     "none" -> "none"
-                    "allowed" -> "allowed ones" + if (s.changes.isEmpty()) "" else " (${s.changes.joinToString("; ")})"
-                    else -> "some that aren't allowed" + if (s.changes.isEmpty()) "" else " (${s.changes.joinToString("; ")})"
+                    "allowed" -> jText("allowed ones", "تغييرات مسموحة") + if (s.changes.isEmpty()) "" else " (${s.changes.joinToString("; ")})"
+                    else -> jText("some that aren't allowed", "توجد تغييرات غير مسموحة") + if (s.changes.isEmpty()) "" else " (${s.changes.joinToString("; ")})"
                 },
             )
             for (d in s.details) Text("• $d", color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         } else {
-            Text("Nobody has signed this field yet.", color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Text(jText("Nobody has signed this field yet.", "لم يوقّع أحد هذا الحقل بعد."), color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         }
         Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (s.page != null && s.rect != null) {
-                TextButton(onClick = { doc.controller.sheet = ViewerSheet.None; vm.showSignature(doc, s) }) { Text("Go to it", color = c.accent) }
+                TextButton(onClick = { doc.controller.sheet = ViewerSheet.None; vm.showSignature(doc, s) }) { Text(jText("Go to it", "الانتقال إليه"), color = c.accent) }
             }
             val sha = s.cert?.sha256
             if (s.signed && sha != null) {
                 if (vm.trustedCerts.contains(sha)) {
-                    TextButton(onClick = { vm.untrustSigner(doc, s) }) { Text("Stop trusting", color = c.accent) }
+                    TextButton(onClick = { vm.untrustSigner(doc, s) }) { Text(jText("Stop trusting", "إلغاء الثقة"), color = c.accent) }
                 } else if (s.status == "unknown") {
-                    TextButton(onClick = { vm.trustSigner(doc, s) }) { Text("Trust this signer", color = c.accent) }
+                    TextButton(onClick = { vm.trustSigner(doc, s) }) { Text(jText("Trust this signer", "الوثوق بهذا الموقّع"), color = c.accent) }
                 }
             }
             if (!s.signed) {
                 TextButton(onClick = {
                     doc.controller.sheet = ViewerSheet.None
                     doc.widgets.firstOrNull { it.field == s.field }?.let { vm.signFieldWithId(doc, it) }
-                }) { Text("Sign", color = c.accent) }
+                }) { Text(jText("Sign", "توقيع"), color = c.accent) }
             }
         }
     }

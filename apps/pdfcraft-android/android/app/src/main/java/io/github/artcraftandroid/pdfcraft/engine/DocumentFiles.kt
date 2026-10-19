@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.engine
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
@@ -31,7 +33,7 @@ class DocumentFiles(private val context: Context) {
     /** The working copy of [uri]: copied in (again) unless it is a file the app already owns. */
     fun workingCopy(uri: Uri): File {
         if (uri.scheme == ContentResolver.SCHEME_FILE) {
-            val f = File(requireNotNull(uri.path) { "The file has no path." })
+            val f = File(requireNotNull(uri.path) { jText("The file has no path.", "لا يوجد مسار للملف.") })
             if (f.canonicalPath.startsWith(context.filesDir.canonicalPath)) return f
         }
         val name = displayName(uri)
@@ -39,7 +41,7 @@ class DocumentFiles(private val context: Context) {
         val target = File(dir, name)
         val tmp = File(dir, ".$name.part")
         resolver.openInputStream(uri).use { input ->
-            requireNotNull(input) { "The file couldn't be read." }
+            requireNotNull(input) { jText("The file couldn't be read.", "تعذّرت قراءة الملف.") }
             tmp.outputStream().use { input.copyTo(it) }
         }
         if (!tmp.renameTo(target)) {
@@ -79,8 +81,8 @@ class DocumentFiles(private val context: Context) {
     fun displayNameRaw(uri: Uri): String {
         val name = runCatching {
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-        }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "File"
-        return name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().ifEmpty { "File" }
+        }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: jText("File", "ملف")
+        return name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().ifEmpty { jText("File", "ملف") }
     }
 
     /** The size of [uri] in bytes, when its provider says. */
@@ -108,7 +110,7 @@ class DocumentFiles(private val context: Context) {
 
     /** Write [file] over [uri] (truncating it). */
     fun writeBack(file: File, uri: Uri) {
-        val out = resolver.openOutputStream(uri, "wt") ?: error("The file couldn't be written.")
+        val out = resolver.openOutputStream(uri, "wt") ?: error(jText("The file couldn't be written.", "تعذّرت الكتابة إلى الملف."))
         out.use { o -> file.inputStream().use { it.copyTo(o) } }
     }
 
@@ -160,10 +162,10 @@ class DocumentFiles(private val context: Context) {
             put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val collection = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
-        val uri = resolver.insert(collection, values) ?: error("The file couldn't be saved to Downloads.")
+        val uri = resolver.insert(collection, values) ?: error(jText("The file couldn't be saved to Downloads.", "تعذّر حفظ الملف في التنزيلات."))
         try {
             resolver.openOutputStream(uri).use { out ->
-                requireNotNull(out) { "The file couldn't be saved to Downloads." }
+                requireNotNull(out) { jText("The file couldn't be saved to Downloads.", "تعذّر حفظ الملف في التنزيلات.") }
                 file.inputStream().use { it.copyTo(out) }
             }
             resolver.update(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
@@ -179,11 +181,11 @@ class DocumentFiles(private val context: Context) {
         val values = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
-            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/PdfCraft")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/Jahfan")
         }
-        val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: error("The image couldn't be saved.")
+        val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: error(jText("The image couldn't be saved.", "تعذّر حفظ الصورة."))
         resolver.openOutputStream(uri).use { out ->
-            requireNotNull(out) { "The image couldn't be saved." }
+            requireNotNull(out) { jText("The image couldn't be saved.", "تعذّر حفظ الصورة.") }
             file.inputStream().use { it.copyTo(out) }
         }
         return uri
@@ -191,14 +193,14 @@ class DocumentFiles(private val context: Context) {
 
     /** Where [uri] is, as a person would say it: a folder path, or the app that provided it. */
     fun displayLocation(uri: Uri): String = when (uri.scheme) {
-        ContentResolver.SCHEME_FILE -> uri.path?.substringBeforeLast('/')?.replace("/storage/emulated/0", "Internal storage") ?: "This device"
+        ContentResolver.SCHEME_FILE -> uri.path?.substringBeforeLast('/')?.replace("/storage/emulated/0", jText("Internal storage", "وحدة التخزين الداخلية")) ?: jText("This device", "هذا الجهاز")
         else -> {
             val auth = uri.authority.orEmpty()
             when {
-                auth.contains("downloads") -> "Downloads"
-                auth.contains("externalstorage") -> "Internal storage" + (Uri.decode(uri.lastPathSegment ?: "").substringAfter(':', "").substringBeforeLast('/', "").let { if (it.isEmpty()) "" else "/$it" })
-                auth.contains("media") -> "Media"
-                else -> context.packageManager.resolveContentProvider(auth, 0)?.loadLabel(context.packageManager)?.toString() ?: "Another app"
+                auth.contains("downloads") -> jText("Downloads", "التنزيلات")
+                auth.contains("externalstorage") -> jText("Internal storage", "وحدة التخزين الداخلية") + (Uri.decode(uri.lastPathSegment ?: "").substringAfter(':', "").substringBeforeLast('/', "").let { if (it.isEmpty()) "" else "/$it" })
+                auth.contains("media") -> jText("Media", "الوسائط")
+                else -> context.packageManager.resolveContentProvider(auth, 0)?.loadLabel(context.packageManager)?.toString() ?: jText("Another app", "تطبيق آخر")
             }
         }
     }
@@ -206,7 +208,7 @@ class DocumentFiles(private val context: Context) {
     companion object {
         /** A file name without path separators or control characters, ending in `.pdf`. */
         fun safeName(name: String): String {
-            val clean = name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().trimStart('.').ifEmpty { "Document" }
+            val clean = name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().trimStart('.').ifEmpty { jText("Document", "مستند") }
             return if (clean.lowercase().endsWith(".pdf")) clean else "$clean.pdf"
         }
 

@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -34,6 +36,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(JahfanLanguage.wrap(base))
+    }
+
     private val vm: AppViewModel by viewModels()
 
     /** Browse: any PDF a document provider offers, opened with write access when it allows. */
@@ -135,9 +141,9 @@ class MainActivity : ComponentActivity() {
         try {
             block()
         } catch (e: ActivityNotFoundException) {
-            vm.tell("No app on this phone can do that.")
+            vm.tell(jText("No app on this phone can do that.", "لا يوجد تطبيق على هذا الهاتف لتنفيذ هذا الإجراء."))
         } catch (e: SecurityException) {
-            vm.tell("Android didn't allow that.")
+            vm.tell(jText("Android didn't allow that.", "لم يسمح Android بهذا الإجراء."))
         }
     }
 
@@ -188,7 +194,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        runCatching { pm.print(name, adapter, null) }.onFailure { vm.tell("Printing isn't allowed for this document.") }
+        runCatching { pm.print(name, adapter, null) }.onFailure { vm.tell(jText("Printing isn't allowed for this document.", "لا يُسمح بطباعة هذا المستند.")) }
     }
 }
 

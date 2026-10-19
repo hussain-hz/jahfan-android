@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -313,7 +315,7 @@ private fun MarkupLayer(vm: AppViewModel, doc: OpenDocument) {
                 scope.launch {
                     val n = withContext(eng.commands) { eng.session.glyphCount(doc.id, at.page.toUInt()) }
                     if (n == 0u) {
-                        vm.tell("This page has no text to mark. Recognize text first (More tools ▸ Recognize text).")
+                        vm.tell(jText("This page has no text to mark. Recognize text first (More tools ▸ Recognize text).", "لا يوجد نص قابل للتحديد في هذه الصفحة. استخدم التعرّف على النص أولًا من «المزيد من الأدوات»."))
                         return@launch
                     }
                     val g = withContext(eng.commands) { eng.session.nearestGlyph(doc.id, at.page.toUInt(), at.x, at.y) } ?: return@launch
@@ -367,31 +369,31 @@ fun ToolSubToolbar(vm: AppViewModel, doc: OpenDocument) {
     }
     when (ctl.tool) {
         ViewerTool.Markup -> SubToolbar {
-            SubTool(LucideIcons.Highlighter, "Highlight", ctl.markup == TextMarkup.Highlight, { ctl.markup = TextMarkup.Highlight })
-            SubTool(LucideIcons.Underline, "Underline", ctl.markup == TextMarkup.Underline, { ctl.markup = TextMarkup.Underline })
-            SubTool(LucideIcons.Strikethrough, "Strikethrough", ctl.markup == TextMarkup.Strikethrough, { ctl.markup = TextMarkup.Strikethrough })
+            SubTool(LucideIcons.Highlighter, jText("Highlight", "تمييز"), ctl.markup == TextMarkup.Highlight, { ctl.markup = TextMarkup.Highlight })
+            SubTool(LucideIcons.Underline, jText("Underline", "تسطير"), ctl.markup == TextMarkup.Underline, { ctl.markup = TextMarkup.Underline })
+            SubTool(LucideIcons.Strikethrough, jText("Strikethrough", "شطب"), ctl.markup == TextMarkup.Strikethrough, { ctl.markup = TextMarkup.Strikethrough })
             SubDivider()
             ColorDot(prefs.color(ctl.markup.styled), picker == Picker.Color) { toggle(Picker.Color) }
         }
         ViewerTool.Draw -> SubToolbar {
-            SubTool(LucideIcons.PenLine, "Draw freeform", true, {})
+            SubTool(LucideIcons.PenLine, jText("Draw freeform", "رسم حر"), true, {})
             SubDivider()
-            SubProperty(LucideIcons.Menu, "Line thickness", picker == Picker.Width, { toggle(Picker.Width) })
+            SubProperty(LucideIcons.Menu, jText("Line thickness", "سُمك الخط"), picker == Picker.Width, { toggle(Picker.Width) })
             ColorDot(prefs.color(StyledTool.Ink), picker == Picker.Color) { toggle(Picker.Color) }
             SubDivider()
-            SubTool(LucideIcons.Shapes, "Snap to shape", prefs.snapToShape, {
+            SubTool(LucideIcons.Shapes, jText("Snap to shape", "تحويل الرسم إلى شكل"), prefs.snapToShape, {
                 prefs.updateSnapToShape(!prefs.snapToShape)
-                vm.tell(if (prefs.snapToShape) "Snap to shape on" else "Snap to shape off")
+                vm.tell(if (prefs.snapToShape) jText("Snap to shape on", "تحويل الرسم إلى شكل: مفعّل") else jText("Snap to shape off", "تحويل الرسم إلى شكل: متوقف"))
             })
         }
         ViewerTool.Comment -> SubToolbar {
-            SubTool(LucideIcons.MessageSquareText, "Text comment", ctl.commentMode == CommentMode.Text, { ctl.commentMode = CommentMode.Text })
-            SubTool(LucideIcons.MicAudioLines, "Voice comment", ctl.commentMode == CommentMode.Voice, { ctl.commentMode = CommentMode.Voice })
+            SubTool(LucideIcons.MessageSquareText, jText("Text comment", "تعليق نصي"), ctl.commentMode == CommentMode.Text, { ctl.commentMode = CommentMode.Text })
+            SubTool(LucideIcons.MicAudioLines, jText("Voice comment", "تعليق صوتي"), ctl.commentMode == CommentMode.Voice, { ctl.commentMode = CommentMode.Voice })
         }
         ViewerTool.Text -> SubToolbar {
-            SubTool(LucideIcons.Type, "Text", true, {})
+            SubTool(LucideIcons.Type, jText("Text", "نص"), true, {})
             SubDivider()
-            SubProperty(LucideIcons.ALargeSmall, "Text size", picker == Picker.TextSize, { toggle(Picker.TextSize) })
+            SubProperty(LucideIcons.ALargeSmall, jText("Text size", "حجم النص"), picker == Picker.TextSize, { toggle(Picker.TextSize) })
             ColorDot(prefs.color(StyledTool.FreeText), picker == Picker.Color) { toggle(Picker.Color) }
         }
         ViewerTool.FillSign -> FillSignToolbar(vm, doc)
@@ -429,29 +431,29 @@ fun PropertyPicker(vm: AppViewModel, tool: StyledTool, picker: Picker, markup: T
         when (picker) {
             Picker.Color -> {
                 val title = when (tool) {
-                    StyledTool.Highlight -> "Highlight color"
-                    StyledTool.Underline -> "Underline color"
-                    StyledTool.Strikethrough -> "Strikethrough color"
-                    StyledTool.Ink -> "Drawing color"
-                    StyledTool.FreeText -> "Text color"
-                    StyledTool.Note -> "Comment color"
+                    StyledTool.Highlight -> jText("Highlight color", "لون التمييز")
+                    StyledTool.Underline -> jText("Underline color", "لون التسطير")
+                    StyledTool.Strikethrough -> jText("Strikethrough color", "لون الشطب")
+                    StyledTool.Ink -> jText("Drawing color", "لون الرسم")
+                    StyledTool.FreeText -> jText("Text color", "لون النص")
+                    StyledTool.Note -> jText("Comment color", "لون التعليق")
                 }
                 Text(title, color = c.text, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 3.dp, bottom = 18.dp))
                 ColorGrid(prefs.color(tool)) { prefs.setColor(tool, it) }
                 if (tool != StyledTool.FreeText) {
-                    Text("Opacity", color = c.text, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 78.dp, top = 20.dp, bottom = 8.dp))
+                    Text(jText("Opacity", "العتامة"), color = c.text, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 78.dp, top = 20.dp, bottom = 8.dp))
                     OpacitySlider(prefs.color(tool), prefs.opacity(tool)) { prefs.setOpacity(tool, it) }
                 }
                 Spacer(Modifier.height(30.dp))
             }
             Picker.Width -> {
-                Text("Line thickness", color = c.text, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, bottom = 12.dp))
+                Text(jText("Line thickness", "سُمك الخط"), color = c.text, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, bottom = 12.dp))
                 InkWidthRow(prefs.color(StyledTool.Ink), prefs.inkWidth) { prefs.updateInkWidth(it) }
             }
             Picker.TextSize -> {
-                Text("Text size", color = c.text, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, bottom = 4.dp))
+                Text(jText("Text size", "حجم النص"), color = c.text, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, bottom = 4.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${prefs.textSize.toInt()} pt", color = c.text, fontSize = 15.sp, modifier = Modifier.width(56.dp))
+                    Text(jText("${prefs.textSize.toInt()} pt", "${prefs.textSize.toInt()} نقطة"), color = c.text, fontSize = 15.sp, modifier = Modifier.width(56.dp))
                     Slider(
                         value = prefs.textSize,
                         onValueChange = { v -> prefs.updateTextSize((Math.round(v / 2f) * 2f).coerceIn(6f, 22f)) },
@@ -478,7 +480,7 @@ fun InkWidthRow(color: Color, selected: Float?, onPick: (Float) -> Unit) {
                 Modifier.size(48.dp)
                     .then(if (selected == w) Modifier.border(1.5.dp, c.accent, RoundedCornerShape(4.dp)) else Modifier)
                     .clickable(role = Role.RadioButton) { onPick(w) }
-                    .semantics { contentDescription = "Stroke width ${i + 1}" },
+                    .semantics { contentDescription = jText("Stroke width ${i + 1}", "سُمك الخط ${i + 1}") },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(Modifier.width(28.dp).height((1 + i * 1.2f).dp).background(color))
@@ -543,7 +545,7 @@ fun OpacitySlider(color: Color, value: Float, onChange: (Float) -> Unit) {
             .pointerInput(Unit) {
                 detectHorizontalDragGestures { change, _ -> onChange((min + (change.position.x / size.width).coerceIn(0f, 1f) * (1f - min))) }
             }
-            .semantics { contentDescription = "Opacity ${(value * 100).toInt()}%" },
+            .semantics { contentDescription = jText("Opacity ${(value * 100).toInt()}%", "العتامة ${(value * 100).toInt()}٪") },
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val sq = 12.dp.toPx()

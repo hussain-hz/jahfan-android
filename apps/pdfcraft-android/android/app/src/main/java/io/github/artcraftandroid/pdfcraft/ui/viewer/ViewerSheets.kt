@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -94,43 +96,43 @@ fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
                 Text(doc.title, color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(LucideIcons.Smartphone, "Stored on this device", tint = c.icon, modifier = Modifier.size(16.dp))
+                    Icon(LucideIcons.Smartphone, jText("Stored on this device", "محفوظ على هذا الجهاز"), tint = c.icon, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("PDF • ${modifiedLabel(doc.file.lastModified())}" + if (!doc.writable) " • Read-only" else "", color = c.text, fontSize = 13.sp)
+                    Text("PDF • ${modifiedLabel(doc.file.lastModified())}" + if (!doc.writable) jText(" • Read-only", " • للقراءة فقط") else "", color = c.text, fontSize = 13.sp)
                 }
             }
-            BarIcon(LucideIcons.Printer, "Print", { close(); vm.print(doc) }, size = 40.dp)
-            BarIcon(LucideIcons.Star, if (starred) "Remove the star" else "Add a star", { vm.toggleStar(doc) },
+            BarIcon(LucideIcons.Printer, jText("Print", "طباعة"), { close(); vm.print(doc) }, size = 40.dp)
+            BarIcon(LucideIcons.Star, if (starred) jText("Remove the star", "إلغاء التمييز") else jText("Add a star", "تمييز الملف"), { vm.toggleStar(doc) },
                 tint = if (starred) Color(0xFFF5B800) else c.icon, size = 40.dp)
         }
         SheetDivider()
         Column(Modifier.verticalScroll(scroll).padding(top = 5.dp)) {
-            SheetRow(LucideIcons.Glasses, "View settings", { ctl.sheet = ViewerSheet.ViewSettings }, chevron = true)
-            SheetRow(LucideIcons.LayoutGrid, "Pages", { close(); ctl.pagesOpen = true }, chevron = true)
-            if (doc.info.attachments > 0u) SheetRow(LucideIcons.Paperclip, "Attachments", { ctl.sheet = ViewerSheet.Attachments }, chevron = true)
-            SheetRow(LucideIcons.Bookmark, "Bookmarks & Table of Contents", { ctl.sheet = ViewerSheet.Bookmarks }, chevron = true)
-            SheetRow(LucideIcons.MessagesSquare, "Comment List", { ctl.sheet = ViewerSheet.Comments }, chevron = true)
-            SheetRow(LucideIcons.ShieldCheck, "Signatures", { ctl.sheet = ViewerSheet.Signatures }, chevron = true)
+            SheetRow(LucideIcons.Glasses, jText("View settings", "إعدادات العرض"), { ctl.sheet = ViewerSheet.ViewSettings }, chevron = true)
+            SheetRow(LucideIcons.LayoutGrid, jText("Pages", "الصفحات"), { close(); ctl.pagesOpen = true }, chevron = true)
+            if (doc.info.attachments > 0u) SheetRow(LucideIcons.Paperclip, jText("Attachments", "المرفقات"), { ctl.sheet = ViewerSheet.Attachments }, chevron = true)
+            SheetRow(LucideIcons.Bookmark, jText("Bookmarks & Table of Contents", "الإشارات المرجعية والفهرس"), { ctl.sheet = ViewerSheet.Bookmarks }, chevron = true)
+            SheetRow(LucideIcons.MessagesSquare, jText("Comment List", "قائمة التعليقات"), { ctl.sheet = ViewerSheet.Comments }, chevron = true)
+            SheetRow(LucideIcons.ShieldCheck, jText("Signatures", "التوقيعات"), { ctl.sheet = ViewerSheet.Signatures }, chevron = true)
             SheetRow(
                 if (bookmarked) LucideIcons.BookmarkMinus else LucideIcons.BookmarkPlus,
-                if (bookmarked) "Remove bookmark" else "Add bookmark",
+                if (bookmarked) jText("Remove bookmark", "إزالة الإشارة المرجعية") else jText("Add bookmark", "إضافة إشارة مرجعية"),
                 { close(); vm.toggleBookmark(doc) },
             )
-            SheetRow(LucideIcons.Volume2, "Read aloud", { close(); vm.startReadAloud(doc) })
-            SheetRow(LucideIcons.FilePenLine, "Edit PDF", { close(); vm.enterTool(doc, ViewerTool.Edit) })
+            SheetRow(LucideIcons.Volume2, jText("Read aloud", "القراءة بصوت عالٍ"), { close(); vm.startReadAloud(doc) })
+            SheetRow(LucideIcons.FilePenLine, jText("Edit PDF", "تحرير PDF"), { close(); vm.enterTool(doc, ViewerTool.Edit) })
             GroupDivider()
-            SheetRow(LucideIcons.FileOutput, "Export as...", { close(); vm.openExport(doc) })
-            SheetRow(LucideIcons.FileArchive, "Compress PDF", { close(); vm.openCompress(doc) })
-            SheetRow(LucideIcons.Combine, "Combine files", { close(); vm.openCombine(doc) })
-            SheetRow(LucideIcons.FileLock2, "Set password", { close(); vm.openProtect(doc) })
-            SheetRow(LucideIcons.FilePlus2, "Create PDF", { close(); vm.openCreate() })
+            SheetRow(LucideIcons.FileOutput, jText("Export as...", "تصدير بصيغة…"), { close(); vm.openExport(doc) })
+            SheetRow(LucideIcons.FileArchive, jText("Compress PDF", "ضغط PDF"), { close(); vm.openCompress(doc) })
+            SheetRow(LucideIcons.Combine, jText("Combine files", "دمج الملفات"), { close(); vm.openCombine(doc) })
+            SheetRow(LucideIcons.FileLock2, jText("Set password", "تعيين كلمة مرور"), { close(); vm.openProtect(doc) })
+            SheetRow(LucideIcons.FilePlus2, jText("Create PDF", "إنشاء PDF"), { close(); vm.openCreate() })
             if (doc.info.undo != null || doc.info.redo != null) {
                 GroupDivider()
-                doc.info.undo?.let { SheetRow(LucideIcons.Undo2, "Undo $it", { close(); vm.undo(doc) }) }
-                doc.info.redo?.let { SheetRow(LucideIcons.Redo2, "Redo $it", { close(); vm.redo(doc) }) }
+                doc.info.undo?.let { SheetRow(LucideIcons.Undo2, jText("Undo $it", "تراجع عن ${io.github.artcraftandroid.pdfcraft.ui.arabicEngineLabel(it)}"), { close(); vm.undo(doc) }) }
+                doc.info.redo?.let { SheetRow(LucideIcons.Redo2, jText("Redo $it", "إعادة ${io.github.artcraftandroid.pdfcraft.ui.arabicEngineLabel(it)}"), { close(); vm.redo(doc) }) }
             }
             GroupDivider()
-            SheetRow(LucideIcons.Copy, "Save a copy", { close(); vm.saveCopyAs(doc) })
+            SheetRow(LucideIcons.Copy, jText("Save a copy", "حفظ نسخة"), { close(); vm.saveCopyAs(doc) })
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -144,7 +146,7 @@ internal fun modifiedLabel(t: Long, now: Long = System.currentTimeMillis()): Str
     val yesterday = day(now - 24L * 3600 * 1000)
     return when (day(t)) {
         today -> DateFormat.getTimeInstance(DateFormat.SHORT).format(d)
-        yesterday -> "Yesterday"
+        yesterday -> jText("Yesterday", "أمس")
         else -> DateFormat.getDateInstance(DateFormat.MEDIUM).format(d)
     }
 }
@@ -154,21 +156,21 @@ internal fun modifiedLabel(t: Long, now: Long = System.currentTimeMillis()): Str
 fun ViewSettingsSheet(vm: AppViewModel, doc: OpenDocument) {
     val ctl = doc.controller
     PdfSheet(onDismiss = { ctl.sheet = ViewerSheet.None }) {
-        SheetBackHeader("View settings", onBack = { ctl.sheet = ViewerSheet.More })
-        SheetRow(LucideIcons.GalleryVerticalEnd, "Continuous", {
+        SheetBackHeader(jText("View settings", "إعدادات العرض"), onBack = { ctl.sheet = ViewerSheet.More })
+        SheetRow(LucideIcons.GalleryVerticalEnd, jText("Continuous", "متواصل"), {
             vm.setPageMode(doc, PageMode.Continuous)
             ctl.sheet = ViewerSheet.None
         }, checked = doc.viewer.mode == PageMode.Continuous && !vm.readingMode)
-        SheetRow(LucideIcons.File, "Single page", {
+        SheetRow(LucideIcons.File, jText("Single page", "صفحة واحدة"), {
             vm.setPageMode(doc, PageMode.SinglePage)
             ctl.sheet = ViewerSheet.None
         }, checked = doc.viewer.mode == PageMode.SinglePage && !vm.readingMode)
-        SheetRow(LucideIcons.BookOpenText, "Reading Mode", {
+        SheetRow(LucideIcons.BookOpenText, jText("Reading Mode", "وضع القراءة"), {
             ctl.sheet = ViewerSheet.None
             vm.openReadingMode(doc)
         }, checked = vm.readingMode)
         GroupDivider()
-        SheetRow(LucideIcons.Moon, "Night Mode", { vm.setNightMode(doc, !ctl.nightMode); ctl.sheet = ViewerSheet.None }) {
+        SheetRow(LucideIcons.Moon, jText("Night Mode", "الوضع الليلي"), { vm.setNightMode(doc, !ctl.nightMode); ctl.sheet = ViewerSheet.None }) {
             PdfSwitch(ctl.nightMode, { vm.setNightMode(doc, it); ctl.sheet = ViewerSheet.None })
         }
         Spacer(Modifier.height(24.dp))
@@ -188,9 +190,9 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
     var parent by remember { mutableStateOf(-1) }
     var renaming by remember { mutableStateOf<Int?>(null) }
     PdfSheet(onDismiss = { ctl.sheet = ViewerSheet.None }, maxHeightFraction = 0.69f, fill = true) {
-        SheetBackHeader("Bookmarks & Table of Contents", onBack = { ctl.sheet = ViewerSheet.More })
+        SheetBackHeader(jText("Bookmarks & Table of Contents", "الإشارات المرجعية والفهرس"), onBack = { ctl.sheet = ViewerSheet.More })
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            listOf("Contents", "Bookmarks").forEachIndexed { i, label ->
+            listOf(jText("Contents", "الفهرس"), jText("Bookmarks", "الإشارات المرجعية")).forEachIndexed { i, label ->
                 Column(
                     Modifier.weight(1f).clickable(role = Role.Tab) { tab = i }.padding(top = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -206,7 +208,7 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
             val all = outline
             when {
                 all == null -> Text("…", color = c.textSecondary, modifier = Modifier.padding(20.dp))
-                all.isEmpty() -> Text("This document has no table of contents.", color = c.textSecondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp))
+                all.isEmpty() -> Text(jText("This document has no table of contents.", "لا يحتوي هذا المستند على فهرس."), color = c.textSecondary, fontSize = 15.sp, modifier = Modifier.padding(20.dp))
                 else -> {
                     val level = if (parent < 0) 0u else all[parent].level + 1u
                     val start = parent + 1
@@ -224,7 +226,7 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
                         if (parent >= 0) {
                             item {
                                 Row(Modifier.fillMaxWidth().clickable { parent = parentOf(all, parent) }.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(LucideIcons.ArrowLeft, "Up a level", tint = c.icon, modifier = Modifier.size(22.dp))
+                                    Icon(LucideIcons.ArrowLeft, jText("Up a level", "المستوى الأعلى"), tint = c.icon, modifier = Modifier.size(22.dp))
                                     Spacer(Modifier.width(16.dp))
                                     Text(all[parent].title, color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 }
@@ -243,7 +245,7 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(e.title, color = c.text, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(vertical = 10.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                if (e.children > 0u) BarIcon(LucideIcons.ChevronRight, "Expand ${e.title}", { parent = i })
+                                if (e.children > 0u) BarIcon(LucideIcons.ChevronRight, jText("Expand ${e.title}", "توسيع ${e.title}"), { parent = i })
                             }
                         }
                     }
@@ -255,9 +257,9 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
                 Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(LucideIcons.Bookmark, null, tint = c.textSecondary, modifier = Modifier.size(40.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("Your bookmarks show up here.", color = c.text, fontSize = 15.sp)
+                    Text(jText("Your bookmarks show up here.", "ستظهر إشاراتك المرجعية هنا."), color = c.text, fontSize = 15.sp)
                     Spacer(Modifier.height(16.dp))
-                    Text("Add a bookmark", color = c.accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    Text(jText("Add a bookmark", "إضافة إشارة مرجعية"), color = c.accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clickable { vm.toggleBookmark(doc) }.padding(8.dp))
                 }
             } else {
@@ -276,9 +278,9 @@ fun BookmarksSheet(vm: AppViewModel, doc: OpenDocument) {
                             onRename = { renaming = i },
                             onRenamed = { name ->
                                 renaming = null
-                                if (name.isBlank()) vm.tell("That name can't be used.") else vm.bookmarks.rename(doc, b, name.trim())
+                                if (name.isBlank()) vm.tell(jText("That name can't be used.", "لا يمكن استخدام هذا الاسم.")) else vm.bookmarks.rename(doc, b, name.trim())
                             },
-                            onDelete = { vm.bookmarks.remove(doc, b); vm.tell("${b.name} bookmark removed") },
+                            onDelete = { vm.bookmarks.remove(doc, b); vm.tell(jText("${b.name} bookmark removed", "تمت إزالة الإشارة المرجعية ${b.name}")) },
                             onDeleteAll = { vm.confirmDeleteAllBookmarks = doc },
                         )
                     }
@@ -320,14 +322,14 @@ private fun UserBookmarkRow(name: String, page: Int, renaming: Boolean, onOpen: 
         } else {
             Column(Modifier.weight(1f)) {
                 Text(name, color = c.text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("Page ${page + 1}", color = c.textSecondary, fontSize = 13.sp)
+                Text(jText("Page ${page + 1}", "الصفحة ${page + 1}"), color = c.textSecondary, fontSize = 13.sp)
             }
         }
         Box {
             androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = c.menu) {
-                androidx.compose.material3.DropdownMenuItem(text = { Text("Rename", color = c.text) }, onClick = { menu = false; onRename() })
-                androidx.compose.material3.DropdownMenuItem(text = { Text("Delete", color = c.text) }, onClick = { menu = false; onDelete() })
-                androidx.compose.material3.DropdownMenuItem(text = { Text("Delete all", color = c.text) }, onClick = { menu = false; onDeleteAll() })
+                androidx.compose.material3.DropdownMenuItem(text = { Text(jText("Rename", "إعادة تسمية"), color = c.text) }, onClick = { menu = false; onRename() })
+                androidx.compose.material3.DropdownMenuItem(text = { Text(jText("Delete", "حذف"), color = c.text) }, onClick = { menu = false; onDelete() })
+                androidx.compose.material3.DropdownMenuItem(text = { Text(jText("Delete all", "حذف الكل"), color = c.text) }, onClick = { menu = false; onDeleteAll() })
             }
         }
     }
@@ -346,10 +348,10 @@ fun AttachmentsSheet(vm: AppViewModel, doc: OpenDocument) {
         // the reference sets this title up level with the handle and its back arrow below it
         Box(Modifier.fillMaxWidth().height(44.dp)) {
             Text(
-                "Attachments", color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+                jText("Attachments", "المرفقات"), color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.TopStart).offset(x = 92.dp, y = (-12).dp),
             )
-            BarIcon(LucideIcons.ChevronLeft, "Back", { ctl.sheet = ViewerSheet.More }, modifier = Modifier.align(Alignment.TopStart).offset(x = 3.dp, y = (-5).dp))
+            BarIcon(LucideIcons.ChevronLeft, jText("Back", "رجوع"), { ctl.sheet = ViewerSheet.More }, modifier = Modifier.align(Alignment.TopStart).offset(x = 3.dp, y = (-5).dp))
         }
         LazyColumn {
             items(files) { a ->
@@ -368,9 +370,9 @@ fun AttachmentsSheet(vm: AppViewModel, doc: OpenDocument) {
 }
 
 fun formatSize(bytes: Long): String = when {
-    bytes < 1024 -> "$bytes bytes"
-    bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
-    else -> "%.1f MB".format(bytes / 1024.0 / 1024.0)
+    bytes < 1024 -> jText("$bytes bytes", "$bytes بايت")
+    bytes < 1024 * 1024 -> jText("%.1f KB", "%.1f كيلوبايت").format(bytes / 1024.0)
+    else -> jText("%.1f MB", "%.1f ميغابايت").format(bytes / 1024.0 / 1024.0)
 }
 
 /** `D:20261011143000+02'00'` (or plain text) as a short local date. */
@@ -449,7 +451,7 @@ fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument) {
             CustomizeToolbar(vm) { customizing = false }
             return@PdfSheet
         }
-        SheetTitle("More tools")
+        SheetTitle(jText("More tools", "المزيد من الأدوات"))
         val slots = toolbarSlots(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp)
         val prefs = vm.quickToolbar
         val tools = prefs.bar.drop(slots) + prefs.grid
@@ -477,7 +479,7 @@ fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument) {
                 .clickable(role = Role.Button) { customizing = true },
             contentAlignment = Alignment.Center,
         ) {
-            Text("Customize toolbar", color = pdfColors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(jText("Customize toolbar", "تخصيص شريط الأدوات"), color = pdfColors.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(16.dp))
     }

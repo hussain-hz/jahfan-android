@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -60,7 +62,7 @@ fun ReadingModeContent(vm: AppViewModel, doc: OpenDocument, top: Dp, bottom: Dp,
     var hint by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(doc) {
         delay(400)
-        hint = "Pinch or double-tap to make the text bigger."
+        hint = jText("Pinch or double-tap to make the text bigger.", "باعد بين إصبعين أو اضغط مرتين لتكبير النص.")
         delay(3000)
         hint = null
     }
@@ -129,7 +131,7 @@ fun ReadingModeContent(vm: AppViewModel, doc: OpenDocument, top: Dp, bottom: Dp,
                 Column(Modifier.fillMaxWidth().then(if (ps == null) Modifier.fillParentMaxHeight() else Modifier.heightIn(min = 120.dp)).background(paper).padding(horizontal = 20.dp, vertical = 16.dp)) {
                     when {
                         ps == null -> Unit
-                        ps.isEmpty() -> Text("No text on this page to reflow.", color = ink.copy(alpha = 0.6f), fontSize = size.sp)
+                        ps.isEmpty() -> Text(jText("No text on this page to reflow.", "لا يوجد نص في هذه الصفحة لإعادة تنسيقه."), color = ink.copy(alpha = 0.6f), fontSize = size.sp)
                         else -> {
                             val body = ps.map { it.size }.sorted().let { it[it.size / 2] }.coerceAtLeast(1f)
                             for ((i, p) in ps.withIndex()) {

@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -101,8 +103,8 @@ private val SelectionBlue = Color(0xFF448AFF)
 
 /** The text colours Edit PDF offers, in the reference's order. */
 private val EditColors = listOf(
-    "#ff0000" to "Red", "#ffff00" to "Yellow", "#0000ff" to "Blue", "#00ff00" to "Light green", "#9900ff" to "Purple",
-    "#00ffff" to "Cyan", "#009900" to "Green", "#ffffff" to "White", "#000000" to "Black",
+    "#ff0000" to jText("Red", "أحمر"), "#ffff00" to jText("Yellow", "أصفر"), "#0000ff" to jText("Blue", "أزرق"), "#00ff00" to jText("Light green", "أخضر فاتح"), "#9900ff" to jText("Purple", "بنفسجي"),
+    "#00ffff" to jText("Cyan", "سماوي"), "#009900" to jText("Green", "أخضر"), "#ffffff" to jText("White", "أبيض"), "#000000" to jText("Black", "أسود"),
 )
 
 /** Which formatting panel is open over the bar. */
@@ -127,19 +129,19 @@ private fun EditToolsBar(vm: AppViewModel, doc: OpenDocument) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        EditBarItem(LucideIcons.LayoutGrid, "Organize pages", false, 96.dp) {
+        EditBarItem(LucideIcons.LayoutGrid, jText("Organize pages", "تنظيم الصفحات"), false, 96.dp) {
             vm.organizing = true
             doc.controller.pagesOpen = true
         }
         BarDividerLine()
-        EditBarItem(LucideIcons.Type, "Add text", vm.editMode == EditMode.AddText, 70.dp) {
+        EditBarItem(LucideIcons.Type, jText("Add text", "إضافة نص"), vm.editMode == EditMode.AddText, 70.dp) {
             vm.editMode = if (vm.editMode == EditMode.AddText) EditMode.Select else EditMode.AddText
-            if (vm.editMode == EditMode.AddText) vm.tell("Tap the page where the text should go")
+            if (vm.editMode == EditMode.AddText) vm.tell(jText("Tap the page where the text should go", "اضغط في موضع النص على الصفحة"))
         }
         // as Add text: a mode, then a tap places the picture there
-        EditBarItem(LucideIcons.ImagePlus, "Add image", vm.editMode == EditMode.AddImage, 78.dp) {
+        EditBarItem(LucideIcons.ImagePlus, jText("Add image", "إضافة صورة"), vm.editMode == EditMode.AddImage, 78.dp) {
             vm.editMode = if (vm.editMode == EditMode.AddImage) EditMode.Select else EditMode.AddImage
-            if (vm.editMode == EditMode.AddImage) vm.tell("Tap the page where the picture should go")
+            if (vm.editMode == EditMode.AddImage) vm.tell(jText("Tap the page where the picture should go", "اضغط في موضع الصورة على الصفحة"))
         }
     }
 }
@@ -192,19 +194,19 @@ private fun EditFormatBar(vm: AppViewModel, doc: OpenDocument, para: Paragraph) 
         ) {
             val underline = vm.editUnderline[para.page to para.number] == true
             // the reference draws these as serif T's: heavy, slanted, underlined, and a small t beside a big one
-            LetterButton("T", "Bold", para.bold, weight = FontWeight.Black) { vm.styleParagraph(doc, para, mapOf("bold" to !para.bold)) }
-            LetterButton("T", "Italic", para.italic, italic = true) { vm.styleParagraph(doc, para, mapOf("italic" to !para.italic)) }
-            LetterButton("T", "Underline", underline, underline = true) {
+            LetterButton("T", jText("Bold", "عريض"), para.bold, weight = FontWeight.Black) { vm.styleParagraph(doc, para, mapOf("bold" to !para.bold)) }
+            LetterButton("T", jText("Italic", "مائل"), para.italic, italic = true) { vm.styleParagraph(doc, para, mapOf("italic" to !para.italic)) }
+            LetterButton("T", jText("Underline", "تسطير"), underline, underline = true) {
                 vm.editUnderline[para.page to para.number] = !underline
                 vm.styleParagraph(doc, para, mapOf("underline" to !underline))
             }
-            LetterButton("tT", "Text size", panel == FormatPanel.Size, small = true) { toggle(FormatPanel.Size) }
+            LetterButton("tT", jText("Text size", "حجم النص"), panel == FormatPanel.Size, small = true) { toggle(FormatPanel.Size) }
             Box(
-                Modifier.size(44.dp).clickable(role = Role.Button) { toggle(FormatPanel.Font) }.semantics { contentDescription = "Font" },
+                Modifier.size(44.dp).clickable(role = Role.Button) { toggle(FormatPanel.Font) }.semantics { contentDescription = jText("Font", "الخط") },
                 contentAlignment = Alignment.Center,
             ) { Text("Ag", color = if (panel == FormatPanel.Font) c.toolAccent else c.icon, fontSize = 20.sp, fontFamily = FontFamily.Serif) }
             Box(
-                Modifier.size(44.dp).clickable(role = Role.Button) { toggle(FormatPanel.Color) }.semantics { contentDescription = "Colour" },
+                Modifier.size(44.dp).clickable(role = Role.Button) { toggle(FormatPanel.Color) }.semantics { contentDescription = jText("Colour", "اللون") },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -212,9 +214,9 @@ private fun EditFormatBar(vm: AppViewModel, doc: OpenDocument, para: Paragraph) 
                         .then(if (panel == FormatPanel.Color) Modifier.drawBehind { drawCircle(c.toolAccent, size.minDimension / 2 + 3.dp.toPx(), style = Stroke(2.dp.toPx())) } else Modifier),
                 )
             }
-            FormatButton(alignIcon(vm.editAlign[para.page to para.number] ?: "left"), "Align text", true, tintSelected = panel == FormatPanel.Align || true) { toggle(FormatPanel.Align) }
+            FormatButton(alignIcon(vm.editAlign[para.page to para.number] ?: "left"), jText("Align text", "محاذاة النص"), true, tintSelected = panel == FormatPanel.Align || true) { toggle(FormatPanel.Align) }
             // bulleted and numbered lists, as the reference's phone toolbar offers
-            FormatButton(LucideIcons.List, "List", true, tintSelected = true) { toggle(FormatPanel.List) }
+            FormatButton(LucideIcons.List, jText("List", "قائمة"), true, tintSelected = true) { toggle(FormatPanel.List) }
         }
     }
 }
@@ -257,7 +259,7 @@ private fun SizePanel(para: Paragraph, onSize: (Float) -> Unit) {
     val c = pdfColors
     var size by remember(para.page, para.number, para.size) { mutableFloatStateOf(para.size.coerceIn(6f, 66f)) }
     Column(Modifier.fillMaxWidth().barTopLine().padding(top = 10.dp, bottom = 6.dp)) {
-        Text("Text size: ${size.roundToInt()} pt", color = c.label, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text(jText("Text size: ${size.roundToInt()} pt", "حجم النص: ${size.roundToInt()} نقطة"), color = c.label, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
             Text("A", color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 10.dp))
             Slider(
@@ -275,7 +277,7 @@ private fun SizePanel(para: Paragraph, onSize: (Float) -> Unit) {
 @Composable
 private fun FontPanel(current: String?, onFont: (String) -> Unit) {
     val c = pdfColors
-    val faces = listOf(null to "Original font", "helvetica" to "Sans serif", "times" to "Serif", "courier" to "Monospace")
+    val faces = listOf(null to jText("Original font", "الخط الأصلي"), "helvetica" to jText("Sans serif", "بلا زوائد"), "times" to jText("Serif", "بزوائد"), "courier" to jText("Monospace", "ثابت العرض"))
     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 240.dp).barTopLine().padding(horizontal = 24.dp, vertical = 4.dp)) {
         items(faces.size) { i ->
             val (key, name) = faces[i]
@@ -317,7 +319,7 @@ private fun ListPanel(current: ListStyle, onPick: (ListStyle) -> Unit) {
     Row(Modifier.fillMaxWidth().barTopLine().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
         for (style in ListStyle.entries) {
             Box(
-                Modifier.height(40.dp).widthIn(min = 40.dp).clickable { onPick(style) }.padding(horizontal = 6.dp).semantics { contentDescription = "List ${style.name}" },
+                Modifier.height(40.dp).widthIn(min = 40.dp).clickable { onPick(style) }.padding(horizontal = 6.dp).semantics { contentDescription = jText("List ${style.name}", "نمط القائمة ${style.label}") },
                 contentAlignment = Alignment.Center,
             ) { Text(style.label, color = if (style == current) c.toolAccent else c.icon, fontSize = 17.sp, fontWeight = if (style == current) FontWeight.SemiBold else FontWeight.Normal) }
         }
@@ -436,11 +438,11 @@ private fun BoxScope.SelectedParagraph(vm: AppViewModel, doc: OpenDocument, para
     }
     if (move == Offset.Zero && grow == 0f) {
         FloatingMenu(a, b, doc.viewer.padTop) {
-            MenuText("Edit text") { vm.startInlineEdit(para, selectAll = false) }
+            MenuText(jText("Edit text", "تحرير النص")) { vm.startInlineEdit(para, selectAll = false) }
             MenuSplit()
-            MenuText("Select all") { vm.startInlineEdit(para, selectAll = true) }
+            MenuText(jText("Select all", "تحديد الكل")) { vm.startInlineEdit(para, selectAll = true) }
             MenuSplit()
-            MenuText("Delete") { vm.deleteParagraph(doc, para) }
+            MenuText(jText("Delete", "حذف")) { vm.deleteParagraph(doc, para) }
         }
     }
 }
@@ -540,7 +542,7 @@ private fun BoxScope.InlineEditor(vm: AppViewModel, doc: OpenDocument, para: Par
                 ),
                 cursorBrush = SolidColor(SelectionBlue),
                 onTextLayout = { layout = it },
-                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = "Paragraph text" }
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = jText("Paragraph text", "نص الفقرة") }
                     .drawWithContent {
                         drawContent()
                         val l = layout ?: return@drawWithContent
@@ -658,9 +660,9 @@ private fun BoxScope.SelectedImage(vm: AppViewModel, doc: OpenDocument, img: Edi
     }
     if (move == Offset.Zero && scale == 1f) {
         FloatingMenu(a, b, doc.viewer.padTop) {
-            MenuIconButton(LucideIcons.RotateCcw, "Turn left") { vm.turnImage(doc, img, 3) }
-            MenuIconButton(LucideIcons.RotateCw, "Turn right") { vm.turnImage(doc, img, 1) }
-            MenuIconButton(LucideIcons.Trash2, "Delete") { vm.deleteImage(doc, img) }
+            MenuIconButton(LucideIcons.RotateCcw, jText("Turn left", "تدوير لليسار")) { vm.turnImage(doc, img, 3) }
+            MenuIconButton(LucideIcons.RotateCw, jText("Turn right", "تدوير لليمين")) { vm.turnImage(doc, img, 1) }
+            MenuIconButton(LucideIcons.Trash2, jText("Delete", "حذف")) { vm.deleteImage(doc, img) }
         }
     }
 }

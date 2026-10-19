@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -36,8 +38,8 @@ class ReadAloudService : Service() {
     override fun onCreate() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
-        nm?.createNotificationChannel(NotificationChannel(CHANNEL, "Read aloud", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
-        session = MediaSession(this, "PdfCraft read aloud").apply {
+        nm?.createNotificationChannel(NotificationChannel(CHANNEL, jText("Read aloud", "القراءة بصوت عالٍ"), NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
+        session = MediaSession(this, jText("Jahfan read aloud", "القراءة بصوت عالٍ في جحفان")).apply {
             setCallback(object : MediaSession.Callback() {
                 override fun onPlay() { controls?.play() }
                 override fun onPause() { controls?.pause() }
@@ -94,14 +96,14 @@ class ReadAloudService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_read_aloud)
             .setContentTitle(title)
-            .setContentText(if (playing) "Reading aloud" else "Paused")
+            .setContentText(if (playing) jText("Reading aloud", "جارٍ القراءة بصوت عالٍ") else jText("Paused", "متوقف مؤقتًا"))
             .setContentIntent(open)
             .setOngoing(playing)
             .setDeleteIntent(PendingIntent.getService(this, 1, Intent(this, ReadAloudService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE))
-            .addAction(action(android.R.drawable.ic_media_rew, "Back 15 seconds", ACTION_BACK))
-            .addAction(if (playing) action(android.R.drawable.ic_media_pause, "Pause", ACTION_PAUSE) else action(android.R.drawable.ic_media_play, "Play", ACTION_PLAY))
-            .addAction(action(android.R.drawable.ic_media_ff, "Forward 15 seconds", ACTION_FORWARD))
-            .addAction(action(android.R.drawable.ic_menu_close_clear_cancel, "Stop", ACTION_STOP))
+            .addAction(action(android.R.drawable.ic_media_rew, jText("Back 15 seconds", "رجوع ١٥ ثانية"), ACTION_BACK))
+            .addAction(if (playing) action(android.R.drawable.ic_media_pause, jText("Pause", "إيقاف مؤقت"), ACTION_PAUSE) else action(android.R.drawable.ic_media_play, jText("Play", "تشغيل"), ACTION_PLAY))
+            .addAction(action(android.R.drawable.ic_media_ff, jText("Forward 15 seconds", "تقديم ١٥ ثانية"), ACTION_FORWARD))
+            .addAction(action(android.R.drawable.ic_menu_close_clear_cancel, jText("Stop", "إيقاف"), ACTION_STOP))
             .setStyle(Notification.MediaStyle().setMediaSession(session?.sessionToken).setShowActionsInCompactView(0, 1, 2))
             .build()
     }

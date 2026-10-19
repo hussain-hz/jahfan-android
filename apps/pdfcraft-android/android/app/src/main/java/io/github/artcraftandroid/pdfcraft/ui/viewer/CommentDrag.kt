@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import io.github.artcraftandroid.pdfcraft.jText
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -80,7 +82,7 @@ fun CommentDragOverlay(
                     onDragCancel = { shift = Offset.Zero },
                 )
             }
-            .semantics { contentDescription = "Move comment" },
+            .semantics { contentDescription = jText("Move comment", "نقل التعليق") },
     )
     if (c.subtype !in Resizable) return
     // corner handles: drag to resize, the opposite corner staying put
@@ -115,7 +117,7 @@ fun CommentDragOverlay(
                         onDragCancel = { resized = null },
                     )
                 }
-                .semantics { contentDescription = "Resize comment" },
+                .semantics { contentDescription = jText("Resize comment", "تغيير حجم التعليق") },
         ) {
             Canvas(Modifier.fillMaxSize()) {
                 drawCircle(Color.White, size.minDimension / 2.6f)
