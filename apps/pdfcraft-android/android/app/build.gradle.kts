@@ -45,8 +45,7 @@ val appVersionCode: Int = run {
 }
 
 // The release key, when the build is given one (the release workflow passes it from the repository's
-// secrets). Without one a release build is signed with the debug key: it installs, but it can't
-// update a published release; or, with -Ppdfcraft.unsigned=true (F-Droid's build), not signed at
+// secrets). A release build requires that key; with -Ppdfcraft.unsigned=true (F-Droid's build), not signed at
 // all, so the published APK's signature can be checked against it.
 val releaseKeystore: String? = providers.environmentVariable("PDFCRAFT_KEYSTORE").orNull
 val unsignedRelease: Boolean = providers.gradleProperty("pdfcraft.unsigned").orNull == "true"
@@ -267,7 +266,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = if (unsignedRelease) null else signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            signingConfig = if (unsignedRelease) null else signingConfigs.findByName("release")
             // reproducible builds: no record of the checkout in the APK
             vcsInfo { include = false }
         }
@@ -281,6 +280,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    bundle { language { enableSplit = false } }
     buildFeatures {
         compose = true
     }
@@ -297,6 +297,11 @@ androidComponents {
             ndkDir.set(androidComponents.sdkComponents.ndkDirectory.map { it.asFile.absolutePath })
             abis.set(rustAbis)
             apiLevel.set(minApi)
+            if (name.endsWith("Release")) doFirst {
+                require(unsignedRelease || releaseKeystore != null) {
+                    "Production builds require PDFCRAFT_KEYSTORE and its credentials. Use pdfcraft.unsigned=true only for explicit unsigned builds."
+                }
+            }
             // cargo knows what changed
             outputs.upToDateWhen { false }
         }

@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui
 
+import androidx.core.net.toUri
+
 import io.github.artcraftandroid.pdfcraft.jText
 
 import androidx.compose.foundation.background
@@ -84,7 +86,7 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
     val doc = vm.document
     // outside the viewer (which sets its own) the bar icons follow the app's theme, not the system's
     val view = androidx.compose.ui.platform.LocalView.current
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     androidx.compose.runtime.SideEffect {
         val window = activity?.window ?: return@SideEffect
         if (doc == null) {
@@ -135,13 +137,13 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
         }
         vm.readOnlyPrompt?.let { d ->
             PdfDialog(
-                onDismiss = { vm.answerReadOnly(null) }, title = jText("File is read-only", "الملف للقراءة فقط"),
+                onDismiss = { vm.answerReadOnly(null) }, title = jText("Could not save the original", "تعذّر حفظ الملف الأصلي"),
                 confirm = jText("Save a copy", "حفظ نسخة"), onConfirm = { vm.answerReadOnly(true) },
                 dismiss = jText("Discard", "تجاهل"), onDismissButton = { vm.answerReadOnly(false) },
             ) { Text(jText("Your changes to ${d.name} can't be saved where the file is. Save a copy to keep them.", "تعذّر حفظ تغييراتك على ${d.name} في موقع الملف. احفظ نسخة للاحتفاظ بها."), color = c.text, fontSize = 14.sp) }
         }
         vm.linkPrompt?.let { url ->
-            val shown = runCatching { android.net.Uri.parse(url).let { u -> "${u.scheme}://${u.host}${if (u.port > 0) ":${u.port}" else ""}" } }.getOrDefault(url)
+            val shown = runCatching { url.toUri().let { u -> "${u.scheme}://${u.host}${if (u.port > 0) ":${u.port}" else ""}" } }.getOrDefault(url)
             PdfDialog(onDismiss = { vm.answerLink(false) }, title = jText("Open web page", "فتح صفحة ويب"), confirm = jText("Open", "فتح"), onConfirm = { vm.answerLink(true) }) {
                 Text(jText("Do you want to open the page at $shown?", "هل تريد فتح الصفحة على $shown؟"), color = c.text, fontSize = 14.sp)
             }

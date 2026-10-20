@@ -149,7 +149,7 @@ private fun BottomNav(selected: HomeTab, onSelect: (HomeTab) -> Unit) {
 @Composable
 private fun HomeTabScreen(vm: AppViewModel, onBrowse: () -> Unit) {
     val c = pdfColors
-    var tab by remember { mutableStateOf(0) }
+    var tab by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var fabMenu by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
@@ -168,7 +168,7 @@ private fun HomeTabScreen(vm: AppViewModel, onBrowse: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().safeTopPadding()) {
             if (vm.selectedFiles.isNotEmpty()) SelectionBar(vm, recent = tab == 0, onDelete = { confirmDeleteSelected = true }) else
-            Row(Modifier.fillMaxWidth().height(56.dp).padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().height(56.dp).padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Image(painterResource(R.drawable.ic_launcher_tile), null, modifier = Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)))
                 Spacer(Modifier.width(10.dp))
                 Text(jText("Jahfan", "جحفان"), color = c.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))

@@ -534,3 +534,75 @@ fn fill_text_and_image_signature_scale_and_undo_as_one_edit() {
     let reopened = s.open(path.to_string_lossy().into_owned(), None).unwrap().id;
     assert_eq!(s.comments(reopened).unwrap().len(), 2);
 }
+
+#[test]
+fn source_latin_paragraph_can_be_replaced_with_arabic_and_undone() {
+    for replacement in ["مرحبا بكم في جحفان", "Jahfan جحفان 123"] {
+        let s = MobileSession::new();
+        let doc = s.open(text_pdf("Original paragraph"), None).unwrap().id;
+        s.execute("text_edit".into(), json!({"doc":doc,"page":1,"paragraph":1,"text":replacement}).to_string()).unwrap();
+        assert!(!s.find_in_page(doc, 0, replacement.into(), false, false).unwrap().is_empty());
+        s.execute("edit_undo".into(), json!({"doc":doc}).to_string()).unwrap();
+        assert!(!s.find_in_page(doc, 0, "Original paragraph".into(), false, false).unwrap().is_empty());
+        s.execute("edit_redo".into(), json!({"doc":doc}).to_string()).unwrap();
+        let out = scratch().join("source-arabic.pdf");
+        s.execute("doc_save".into(), json!({"doc":doc,"path":out}).to_string()).unwrap();
+        let reopened = s.open(out.to_string_lossy().into_owned(), None).unwrap().id;
+        assert!(!s.find_in_page(reopened, 0, replacement.into(), false, false).unwrap().is_empty());
+        assert!(s.render_page(reopened, 0, 1.0, None).unwrap().rgba.chunks_exact(4).any(|p| p[0] < 150));
+    }
+}
+
+#[test]
+fn content_list_page_filter_keeps_page_local_indexes() {
+    let s = MobileSession::new();
+    let doc = s.open(blank_pdf(2), None).unwrap().id;
+    for page in [1, 2, 1, 2] {
+        s.execute("page_add_text".into(), json!({"doc":doc,"page":page,"text":"Filter test","at":[72,200]}).to_string()).unwrap();
+    }
+    let result: Value = serde_json::from_str(&s.execute("content_list".into(), json!({"doc":doc,"page":2}).to_string()).unwrap()).unwrap();
+    assert_eq!(result["count"], 2);
+    assert_eq!(result["items"][0]["page"], 2);
+    assert_eq!(result["items"][1]["index"], 2);
+}
+
+#[test]
+fn unsupported_arabic_replacement_preserves_original_and_history() {
+    let s = MobileSession::new();
+    let doc = s.open(text_pdf("Original paragraph"), None).unwrap().id;
+    let before = s.document(doc).unwrap();
+    assert!(s.execute("text_edit".into(), json!({"doc":doc,"page":1,"paragraph":1,"text":"مرحبا \u{10ffff}"}).to_string()).is_err());
+    let after = s.document(doc).unwrap();
+    assert_eq!(before.generation, after.generation);
+    assert_eq!(before.undo, after.undo);
+    assert!(!s.find_in_page(doc, 0, "Original paragraph".into(), false, false).unwrap().is_empty());
+}
+
+#[test]
+#[ignore = "manual host benchmark; generate fixtures with tools/generate-benchmark.py"]
+fn large_document_benchmark() {
+    let root = std::env::var("JAHFAN_BENCHMARK_DIR").expect("fixture directory");
+    for pages in [150, 500, 1000] {
+        let s = MobileSession::new();
+        let start = std::time::Instant::now();
+        let doc = s.open(format!("{root}/jahfan-{pages}.pdf"), None).unwrap().id;
+        let open = start.elapsed().as_millis();
+        let start = std::time::Instant::now();
+        s.render_page(doc, 0, 1.0, None).unwrap();
+        let render = start.elapsed().as_millis();
+        let start = std::time::Instant::now();
+        s.execute("page_add_text".into(), json!({"doc":doc,"page":pages,"text":"مرحبا جحفان","at":[72,60]}).to_string()).unwrap();
+        let edit = start.elapsed().as_millis();
+        println!("JAHFAN_BENCH pages={pages} open_ms={open} first_render_ms={render} edit_ms={edit}");
+    }
+}
+
+#[test]
+fn arabic_fallback_does_not_change_rotated_source_orientation() {
+    let s = MobileSession::new();
+    let doc = s.open(text_pdf("Original paragraph"), None).unwrap().id;
+    s.execute("page_rotate".into(), json!({"doc":doc,"degrees":90}).to_string()).unwrap();
+    let before = s.document(doc).unwrap().generation;
+    assert!(s.execute("text_edit".into(), json!({"doc":doc,"page":1,"paragraph":1,"text":"مرحبا جحفان"}).to_string()).is_err());
+    assert_eq!(before, s.document(doc).unwrap().generation);
+}

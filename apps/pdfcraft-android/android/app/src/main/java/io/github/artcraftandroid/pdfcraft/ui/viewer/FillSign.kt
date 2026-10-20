@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import androidx.core.graphics.createBitmap
+
 import io.github.artcraftandroid.pdfcraft.jText
 
 import io.github.artcraftandroid.pdfcraft.ui.safeTopPadding
@@ -305,7 +307,7 @@ private fun renderStrokes(strokes: List<List<Offset>>, size: IntSize, color: Col
     val maxY = (pts.maxOf { it.y } + pad).coerceAtMost(size.height.toFloat())
     val w = (maxX - minX).toInt().coerceAtLeast(1)
     val h = (maxY - minY).toInt().coerceAtLeast(1)
-    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(w, h)
     val canvas = android.graphics.Canvas(bmp)
     val paint = android.graphics.Paint().apply {
         isAntiAlias = true
@@ -337,7 +339,7 @@ fun androidx.compose.foundation.layout.BoxScope.FillElementMenu(vm: AppViewModel
     val a = doc.viewer.pageToScreen(page, c.rect[0], c.rect[1])
     val b = doc.viewer.pageToScreen(page, c.rect[2], c.rect[3])
     val density = androidx.compose.ui.platform.LocalDensity.current
-    var menuWidth by remember { mutableStateOf(0) }
+    var menuWidth by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val edge = with(density) { 8.dp.toPx() }
     val menuX = a.x.coerceIn(edge, maxOf(edge, doc.viewer.viewW - menuWidth - edge))
     val menuY = with(density) { (a.y - 60.dp.toPx()).coerceAtLeast(doc.viewer.padTop) }

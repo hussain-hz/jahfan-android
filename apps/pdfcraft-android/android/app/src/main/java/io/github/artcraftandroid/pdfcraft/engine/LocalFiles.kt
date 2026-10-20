@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.engine
 
+import androidx.core.net.toUri
+
 import io.github.artcraftandroid.pdfcraft.jText
 
 import android.content.Context
@@ -150,7 +152,7 @@ class Thumbnails(private val context: Context) {
 
     /** The thumbnail of the PDF at [path] or content address (null when it can't be drawn: protected, damaged). Blocking. */
     fun of(path: String, maxSide: Int = 160): Bitmap? {
-        if (path.startsWith("content:")) return ofContent(Uri.parse(path), maxSide)
+        if (path.startsWith("content:")) return ofContent(path.toUri(), maxSide)
         val f = File(path)
         if (!f.isFile) return null
         return cached(sha("$path|${f.lastModified()}|${f.length()}|$maxSide")) { fileThumbnail(path, maxSide.toUInt()).toBitmap() }

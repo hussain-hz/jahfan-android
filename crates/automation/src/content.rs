@@ -66,11 +66,13 @@ fn style(a: &Args, t: &mut AddedText) -> Result<()> {
 
 impl Automation {
     pub(crate) fn content_list(&self, a: &Args) -> Result<Value> {
+        let selected_page = if a.get("page").is_some() { Some(self.page(a)?) } else { None };
         let doc = self.doc(a)?;
         let mut per_page: std::collections::HashMap<usize, usize> = Default::default();
         let items: Vec<Value> = doc
             .added()
             .iter()
+            .filter(|it| selected_page.is_none_or(|p| it.page == p))
             .map(|it| {
                 let index = per_page.entry(it.page).or_default();
                 let ph = doc.info.pages[it.page].height as f64;

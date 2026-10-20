@@ -520,7 +520,7 @@ pub fn tools() -> Vec<ToolDef> {
         )),
         t("content_list", "List added content", "Text and images added with page_add_text/page_add_image (or Edit a PDF ▸ Add content), per page with a 1-based index, rect (points from the top-left of the page), and text style.")
             .ro()
-            .with(schema(json!({ "doc": doc() }), &["doc"])),
+            .with(schema(json!({ "doc": doc(), "page": { "type": "integer", "minimum": 1 } }), &["doc"])),
         t(
             "page_add_text",
             "Add text to a page",

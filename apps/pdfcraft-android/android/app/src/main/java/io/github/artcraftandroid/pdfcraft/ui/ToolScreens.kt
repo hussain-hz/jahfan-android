@@ -248,7 +248,7 @@ private fun ToolChoice(selected: Boolean, name: String, description: String?, on
 @Composable
 fun CompressScreen(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
-    var level by remember { mutableStateOf(1) }
+    var level by remember { androidx.compose.runtime.mutableIntStateOf(1) }
     val levels = listOf(
         jText("High compression", "ضغط عالٍ") to jText("Smallest file, images softer", "أصغر حجم، وصور أقل وضوحًا"),
         jText("Medium compression", "ضغط متوسط") to jText("Balanced file size and quality", "توازن بين الحجم والجودة"),
@@ -318,9 +318,9 @@ fun ProtectScreen(vm: AppViewModel, doc: OpenDocument) {
 @Composable
 fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
-    var tab by remember { mutableStateOf(0) }
+    var tab by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     // the image format used last time comes first chosen
-    var format by remember(tab) { mutableStateOf(if (tab == 1 && vm.lastImageFormat == "png") 1 else 0) }
+    var format by remember(tab) { androidx.compose.runtime.mutableIntStateOf(if (tab == 1 && vm.lastImageFormat == "png") 1 else 0) }
     val formats = if (tab == 0) {
         listOf("Word (docx)" to "docx", jText("Rich Text Format (rtf)", "نص منسق (rtf)") to "rtf", "Excel (xlsx)" to "xlsx", "PowerPoint (pptx)" to "pptx")
     } else {
@@ -508,7 +508,7 @@ enum class FilePickKind { Combine, Create, Insert, Open, DigitalId }
 @Composable
 fun CropScreen(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
-    var page by remember { mutableStateOf(doc.viewer.currentPage) }
+    var page by remember { androidx.compose.runtime.mutableIntStateOf(doc.viewer.currentPage) }
     var allPages by remember { mutableStateOf(false) }
     // the crop as fractions of the page: left, top, right, bottom
     var rect by remember { mutableStateOf(floatArrayOf(0f, 0f, 1f, 1f)) }
@@ -676,12 +676,12 @@ fun ScanScreen(vm: AppViewModel) {
     val c = pdfColors
     val pages = vm.scanPages
     var filter by remember { mutableStateOf(ScanFilter.AutoColor) }
-    var current by remember { mutableStateOf(0) }
+    var current by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var cropping by remember { mutableStateOf<java.io.File?>(null) }
     var naming by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { if (pages.isEmpty()) vm.takeScanPhoto() }
     // a page just taken is the one shown
-    var seen by remember { mutableStateOf(pages.size) }
+    var seen by remember { androidx.compose.runtime.mutableIntStateOf(pages.size) }
     LaunchedEffect(pages.size) {
         if (pages.size > seen) current = pages.lastIndex
         seen = pages.size

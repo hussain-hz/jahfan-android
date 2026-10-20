@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft
 
+import androidx.core.content.edit
+
 import android.app.Activity
 import android.app.LocaleManager
 import android.content.Context
@@ -37,7 +39,7 @@ object JahfanLanguage {
             return
         }
         activity.getSharedPreferences("jahfan_language", Context.MODE_PRIVATE)
-            .edit().putString("language", language).apply()
+            .edit { putString("language", language) }
         // Recreate only the Activity. Its ViewModel keeps open documents and unsaved work.
         activity.recreate()
     }

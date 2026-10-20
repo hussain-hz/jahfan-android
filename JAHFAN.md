@@ -60,3 +60,8 @@ The text and signature creation flows are unchanged. After placement, the item i
 The separate move handle is removed. The resize handle follows the finger horizontally and vertically, and vertical drags have the same scaling sensitivity as horizontal drags even for thin text. Text selection uses a font-measured compact box; its original wrapping box is retained independently so moving/scaling does not change wrapping or alignment. Signature scaling keeps its proportions.
 
 A lower-corner Fit page button appears after a zoom change. It fits the current page inside the space between toolbars, preserves continuous/single-page mode and hides itself after fitting. Its label follows the application language.
+
+
+## Audit corrections (0.1.0-beta.5)
+
+See [AUDIT-FIXES.md](AUDIT-FIXES.md) and [VALIDATION.md](VALIDATION.md) for recovery, safe document transitions, continuous resize, live drag preview, retained shares, targeted metadata refresh, accessible transforms, Arabic whole-paragraph fallback and validation. Run `lintDebug` with the build. Release builds require a configured production key (or explicitly unsigned packaging); preview builds remain debug-signed.

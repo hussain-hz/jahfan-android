@@ -1,5 +1,10 @@
 package io.github.artcraftandroid.pdfcraft.ui
 
+import androidx.core.content.edit
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
+import androidx.core.net.toUri
+
 import io.github.artcraftandroid.pdfcraft.jText
 
 import android.app.ActivityManager
@@ -47,6 +52,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CancellationException
 
 /** A message for the snackbar, with an optional action. */
 data class Message(val text: String, val actionLabel: String? = null, val action: (() -> Unit)? = null)
@@ -58,6 +65,7 @@ data class PasswordRequest(val uri: Uri, val file: File, val wrong: Boolean)
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val application = app as PdfcraftApplication
     val files = DocumentFiles(app)
+    private val saver = io.github.artcraftandroid.pdfcraft.engine.DocumentSaver(files) { tell(it) }
     val recents = RecentFiles(File(app.filesDir, "recent.json"))
 
     var engine by mutableStateOf<Engine?>(null)
@@ -84,8 +92,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** How many bytes of page images to keep: an eighth of the app's heap, between 32 and 192 MB. */
     private val imageBudget: Int = run {
         val am = app.getSystemService(ActivityManager::class.java)
-        val heapMb = (am?.largeMemoryClass ?: 256).coerceAtLeast(64)
-        (heapMb / 4).coerceIn(32, 192) * 1024 * 1024
+        val heapMb = (am?.memoryClass ?: 128).coerceAtLeast(64)
+        (heapMb / 8).coerceIn(32, 192) * 1024 * 1024
     }
 
 
@@ -99,6 +107,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Open the PDF at [uri] (picked, shared, or from Recent), asking for its password if it has one. */
     fun open(uri: Uri, password: String? = null) {
+        if (opening || readOnlyPrompt != null) return
         // a file opened from another app comes to the front, not under Settings
         settingsOpen = false
         showLicences = false
@@ -106,6 +115,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val eng = engine ?: application.engine.await().getOrNull() ?: run { tell(engineProblem ?: jText("Jahfan couldn't start.", "تعذّر بدء جحفان.")); return@launch }
             opening = true
             try {
+                document?.let { current ->
+                    if (current.controller.tool != ViewerTool.None) leaveTool(current)
+                    if (!saveAndClose(eng, current)) {
+                        afterReadOnly = { open(uri, password) }
+                        readOnlyPrompt = current
+                        return@launch
+                    }
+                    document = null
+                }
                 val file = withContext(Dispatchers.IO) {
                     files.keepAccess(uri)
                     files.workingCopy(uri)
@@ -159,7 +177,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun openFile(eng: Engine, uri: Uri, file: File, password: String?) {
         try {
-            document?.let { saveAndClose(eng, it) }
             val info = eng.command { open(file.absolutePath, password) }
             val images = PageImages(eng, info.id, viewModelScope, imageBudget)
             val source = uri.takeIf { it.scheme == "content" || it.scheme == "file" }
@@ -168,6 +185,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 recents.list().firstOrNull { it.uri == uri.toString() } to (source == null || files.canWrite(source))
             }
             doc.writable = writable
+            doc.notWrittenBack = withContext(Dispatchers.IO) { files.recovery.pending(file) }
+            if (doc.notWrittenBack) tell(jText("Recovered your unsaved changes", "تمت استعادة تعديلاتك غير المحفوظة"))
             loadLinks(eng, doc)
             doc.controller.nightMode = savedNightMode
             if (savedPageMode != doc.viewer.mode) doc.viewer.switchMode(savedPageMode)
@@ -204,6 +223,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val prints = Channel<Pair<File, String>>(Channel.BUFFERED)
 
     /** A document that couldn't be saved back to where it came from, waiting for Save a copy or Discard. */
+    private var afterReadOnly: (() -> Unit)? = null
     var readOnlyPrompt by mutableStateOf<OpenDocument?>(null)
         private set
 
@@ -214,12 +234,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (doc.controller.tool != ViewerTool.None) leaveTool(doc)
         viewModelScope.launch {
             // changes the file's place can't take (known read-only, or found so now) are offered as a copy
-            if ((doc.info.dirty || doc.notWrittenBack) && (!doc.writable || !save(doc, quiet = true))) {
+            if (!saveAndClose(eng, doc)) {
                 readOnlyPrompt = doc
                 return@launch
             }
             document = null
-            saveAndClose(eng, doc)
             readingMode = false
             refreshRecents()
         }
@@ -229,6 +248,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun answerReadOnly(saveCopy: Boolean?) {
         val doc = readOnlyPrompt ?: return
         readOnlyPrompt = null
+        val next = afterReadOnly
+        afterReadOnly = null
         val eng = engine ?: return
         when (saveCopy) {
             null -> return
@@ -236,45 +257,57 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 document = null
                 viewModelScope.launch {
                     closeQuietly(eng, doc)
+                    withContext(Dispatchers.IO) { files.recovery.complete(doc.file) }
                     refreshRecents()
+                    next?.invoke()
                 }
             })
             false -> {
                 document = null
                 viewModelScope.launch {
                     closeQuietly(eng, doc)
+                    withContext(Dispatchers.IO) { files.recovery.complete(doc.file) }
                     refreshRecents()
+                    next?.invoke()
                 }
             }
         }
     }
 
-    private suspend fun saveAndClose(eng: Engine, doc: OpenDocument) {
-        val reading = readingMode
-        val pending = pendingPage
-        // the spot at the screen's top-left and the zoom, to reopen there (as the reference does)
-        val v = doc.viewer
-        val spot = if (pending == null && v.mode == io.github.artcraftandroid.pdfcraft.ui.viewer.PageMode.Continuous) v.screenToPage(androidx.compose.ui.geometry.Offset(0f, v.padTop), nearest = true) else null
-        val zoom = v.zoom
-        withContext(Dispatchers.IO) {
-            // in Reading Mode the page canvas has no layout: the page read is the pending one
-            val page = pending ?: spot?.page ?: v.currentPage
-            doc.source?.let { src ->
-                recents.update(src.toString()) {
-                    it.copy(lastPage = page, reading = reading, lastX = spot?.x ?: -1f, lastY = spot?.y ?: -1f, lastZoom = if (spot != null) zoom else 1f)
+    private suspend fun saveAndClose(eng: Engine, doc: OpenDocument): Boolean {
+        doc.closing = true
+        try {
+            val reading = readingMode
+            val pending = pendingPage
+            // the spot at the screen's top-left and the zoom, to reopen there (as the reference does)
+            val v = doc.viewer
+            val spot = if (pending == null && v.mode == io.github.artcraftandroid.pdfcraft.ui.viewer.PageMode.Continuous) v.screenToPage(androidx.compose.ui.geometry.Offset(0f, v.padTop), nearest = true) else null
+            val zoom = v.zoom
+            withContext(Dispatchers.IO) {
+                // in Reading Mode the page canvas has no layout: the page read is the pending one
+                val page = pending ?: spot?.page ?: v.currentPage
+                doc.source?.let { src ->
+                    recents.update(src.toString()) {
+                        it.copy(lastPage = page, reading = reading, lastX = spot?.x ?: -1f, lastY = spot?.y ?: -1f, lastZoom = if (spot != null) zoom else 1f)
+                    }
                 }
             }
-        }
-        save(doc)
-        // Recent shows the size the file has now, not the size it had when opened
-        withContext(Dispatchers.IO) {
-            doc.source?.let { src -> files.size(src)?.let { size -> recents.update(src.toString()) { it.copy(size = size) } } }
-        }
-        closeQuietly(eng, doc)
+            if (!save(doc)) { doc.closing = false; return false }
+            // Recent shows the size the file has now, not the size it had when opened
+            withContext(Dispatchers.IO) {
+                doc.source?.let { src -> files.size(src)?.let { size -> recents.update(src.toString()) { it.copy(size = size) } } }
+            }
+            closeQuietly(eng, doc)
+            return true
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { tell(e.userMessage); return false }
+        finally { if (!doc.closed) doc.closing = false }
     }
 
     private suspend fun closeQuietly(eng: Engine, doc: OpenDocument) {
-        runCatching { eng.command { close(doc.id, true) } }
+        doc.closing = true
+        doc.checkpoint?.cancel()
+        doc.saveMutex.withLock { doc.closed = true; runCatching { eng.command { close(doc.id, true) } } }
         doc.images.close()
         doc.search.clear()
     }
@@ -293,47 +326,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     suspend fun save(doc: OpenDocument, quiet: Boolean = false): Boolean {
         val eng = engine ?: return false
-        if (!doc.info.dirty && !doc.notWrittenBack) return true
-        return try {
-            if (doc.info.dirty) eng.tool("doc_save", mapOf("doc" to doc.id))
-            refresh(doc)
-            val src = doc.source
-            if (src != null && src.scheme == "content") {
-                if (!doc.writable) {
-                    doc.notWrittenBack = true
-                    return false
-                }
-                withContext(Dispatchers.IO) { files.writeBack(doc.file, src) }
-            } else if (src != null && src.scheme == "file") {
-                val target = File(requireNotNull(src.path))
-                if (target.canonicalPath != doc.file.canonicalPath) withContext(Dispatchers.IO) { doc.file.copyTo(target, overwrite = true) }
-            }
-            doc.notWrittenBack = false
-            true
-        } catch (e: Exception) {
-            doc.writable = false
-            doc.notWrittenBack = true
-            if (!quiet) tell(e.userMessage)
-            false
-        }
+        return saver.save(doc, eng, quiet)
     }
 
     /** Read the document's state from the engine again (after an edit, undo or save). */
-    suspend fun refresh(doc: OpenDocument) {
+    suspend fun refresh(doc: OpenDocument, metadata: io.github.artcraftandroid.pdfcraft.engine.MetadataRefresh = io.github.artcraftandroid.pdfcraft.engine.MetadataRefresh.All) {
         val eng = engine ?: return
         val info = runCatching { eng.command { document(doc.id) } }.getOrNull() ?: return
         val changed = info.generation != doc.info.generation
         doc.update(info)
-        if (changed) loadLinks(eng, doc)
+        if (changed) {
+            loadLinks(eng, doc, metadata)
+            if (info.dirty) {
+                doc.checkpoint?.cancel()
+                doc.checkpoint = viewModelScope.launch {
+                    delay(600)
+                    try {
+                        saver.checkpoint(doc, eng)
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { tell(e.userMessage) }
+                }
+            }
+        }
     }
 
-    private suspend fun loadLinks(eng: Engine, doc: OpenDocument) {
-        doc.widgets = runCatching { eng.command { widgets(doc.id) } }.getOrDefault(emptyList())
-        doc.comments = runCatching { eng.command { comments(doc.id) } }.getOrDefault(emptyList())
+    private suspend fun loadLinks(eng: Engine, doc: OpenDocument, metadata: io.github.artcraftandroid.pdfcraft.engine.MetadataRefresh = io.github.artcraftandroid.pdfcraft.engine.MetadataRefresh.All) {
+        if (metadata == io.github.artcraftandroid.pdfcraft.engine.MetadataRefresh.All) doc.widgets = runCatching { eng.command { widgets(doc.id) } }.getOrDefault(emptyList())
+        if (metadata != io.github.artcraftandroid.pdfcraft.engine.MetadataRefresh.Content) doc.comments = runCatching { eng.command { comments(doc.id) } }.getOrDefault(emptyList())
         if (document === doc) selectedFill = selectedFill?.let { selected ->
             doc.comments.firstOrNull { if (selected.name != null) it.name == selected.name else it.page == selected.page && it.index == selected.index }
         }
-        doc.links = runCatching {
+        if (metadata == io.github.artcraftandroid.pdfcraft.engine.MetadataRefresh.All) doc.links = runCatching {
             eng.command { (0 until doc.info.pages.size).associateWith { p -> links(doc.id, p.toUInt()) } }
         }.getOrDefault(emptyMap())
         loadSignatures(eng, doc)
@@ -344,13 +367,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * gets the result; a refusal is told in a snackbar.
      */
     fun runTool(doc: OpenDocument, name: String, args: Map<String, Any?> = emptyMap(), onFinished: () -> Unit = {}, onDone: (JSONObject) -> Unit = {}) {
+        if (doc.closed || doc.closing) { onFinished(); return }
         val eng = engine ?: run { onFinished(); return }
         viewModelScope.launch {
             try {
-                val r = eng.tool(name, args + ("doc" to doc.id))
-                refresh(doc)
+                val r = doc.saveMutex.withLock {
+                    if (doc.closed) return@launch
+                    val result = eng.tool(name, args + ("doc" to doc.id))
+                    refresh(doc, io.github.artcraftandroid.pdfcraft.engine.metadataFor(name))
+                    result
+                }
                 onDone(r)
-            } catch (e: MobileException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 tell(e.userMessage)
             } finally {
                 onFinished()
@@ -444,7 +474,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 doc.viewer.goToPage(page.toInt(), link.top)
             }
             uri != null -> {
-                val parsed = Uri.parse(uri)
+                val parsed = uri.toUri()
                 when (parsed.scheme?.lowercase()) {
                     "mailto", "tel" -> intents.trySend(Intent(Intent.ACTION_VIEW, parsed))
                     else -> linkPrompt = uri
@@ -461,7 +491,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun answerLink(open: Boolean) {
         val uri = linkPrompt ?: return
         linkPrompt = null
-        if (open) intents.trySend(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+        if (open) intents.trySend(Intent(Intent.ACTION_VIEW, uri.toUri()))
     }
 
     /** Find ended: say so when nothing was found. */
@@ -574,9 +604,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (target == null) return
         viewModelScope.launch {
             try {
-                // a read-only source can't take the changes, but the working copy has them all
-                if (doc.info.dirty) engine?.tool("doc_save", mapOf("doc" to doc.id))
-                withContext(Dispatchers.IO) { files.writeBack(doc.file, target) }
+                doc.saveMutex.withLock {
+                    withContext(Dispatchers.IO) { files.recovery.mark(doc.file) }
+                    doc.notWrittenBack = true
+                    if (doc.info.dirty) engine?.tool("doc_save", mapOf("doc" to doc.id))
+                    withContext(Dispatchers.IO) { files.writeBack(doc.file, target) }
+                }
                 refresh(doc)
                 tell(jText("Saved a copy", "تم حفظ نسخة"))
                 then?.invoke()
@@ -659,17 +692,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val t = q.trim()
         if (t.isEmpty()) return
         recentSearches = (listOf(t) + recentSearches.filterNot { it.equals(t, ignoreCase = true) }).take(10)
-        appPrefs.edit().putString("recentSearches", recentSearches.joinToString("\n")).apply()
+        appPrefs.edit { putString("recentSearches", recentSearches.joinToString("\n")) }
     }
 
     fun removeRecentSearch(q: String) {
         recentSearches = recentSearches - q
-        appPrefs.edit().putString("recentSearches", recentSearches.joinToString("\n")).apply()
+        appPrefs.edit { putString("recentSearches", recentSearches.joinToString("\n")) }
     }
 
     fun clearRecentSearches() {
         recentSearches = emptyList()
-        appPrefs.edit().remove("recentSearches").apply()
+        appPrefs.edit { remove("recentSearches") }
     }
 
     /** The key a document's own data (bookmarks, stars, last page) is kept under: where it came from. */
@@ -735,12 +768,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (readingMode && doc.viewer.viewW > 0f) pendingPage = null
         readingMode = false
         doc.viewer.switchMode(mode)
-        appPrefs.edit().putString("pageMode", if (mode == io.github.artcraftandroid.pdfcraft.ui.viewer.PageMode.SinglePage) "single" else "continuous").apply()
+        appPrefs.edit { putString("pageMode", if (mode == io.github.artcraftandroid.pdfcraft.ui.viewer.PageMode.SinglePage) "single" else "continuous") }
     }
 
     fun setNightMode(doc: OpenDocument, on: Boolean) {
         doc.controller.nightMode = on
-        appPrefs.edit().putBoolean("nightMode", on).apply()
+        appPrefs.edit { putBoolean("nightMode", on) }
     }
 
     fun openReadingMode(doc: OpenDocument) {
@@ -757,7 +790,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateKeepScreenOn(on: Boolean) {
         keepScreenOn = on
-        appPrefs.edit().putBoolean("keepScreenOn", on).apply()
+        appPrefs.edit { putBoolean("keepScreenOn", on) }
     }
 
     /** The viewer's keyboard shortcuts (Preferences; off until turned on, as the reference has them). */
@@ -766,7 +799,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateKeyboardShortcuts(on: Boolean) {
         keyboardShortcuts = on
-        appPrefs.edit().putBoolean("keyboardShortcuts", on).apply()
+        appPrefs.edit { putBoolean("keyboardShortcuts", on) }
     }
 
     /** The app's theme (Preferences ▸ Theme): the system's, or always light or dark. */
@@ -775,7 +808,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setThemeChoice(t: ThemeChoice) {
         theme = t
-        appPrefs.edit().putString("theme", t.name).apply()
+        appPrefs.edit { putString("theme", t.name) }
     }
 
     // ---- Reading the document ---------------------------------------------------------------
@@ -1044,7 +1077,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val signatures = io.github.artcraftandroid.pdfcraft.ui.viewer.Signatures(app.filesDir)
 
     /** Bumped when a saved signature is cleared or replaced, so the panel redraws. */
-    var signaturesChanged by mutableStateOf(0)
+    var signaturesChanged by androidx.compose.runtime.mutableIntStateOf(0)
 
     /** A signature or initials being made. */
     var signaturePad by mutableStateOf<io.github.artcraftandroid.pdfcraft.ui.viewer.SignaturePad?>(null)
@@ -1127,7 +1160,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 runCatching {
                     val src = getApplication<Application>().contentResolver.openInputStream(uri).use { android.graphics.BitmapFactory.decodeStream(it) } ?: return@runCatching null
                     val scale = minOf(1f, 1200f / maxOf(src.width, src.height))
-                    val bmp = android.graphics.Bitmap.createScaledBitmap(src, (src.width * scale).toInt().coerceAtLeast(1), (src.height * scale).toInt().coerceAtLeast(1), true)
+                    val bmp = src.scale((src.width * scale).toInt().coerceAtLeast(1), (src.height * scale).toInt().coerceAtLeast(1), true)
                         .copy(android.graphics.Bitmap.Config.ARGB_8888, true)
                     val px = IntArray(bmp.width * bmp.height)
                     bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
@@ -1343,12 +1376,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (signed.isEmpty()) return
         val one = signed.singleOrNull()
         val text = when {
-            signed.any { it.status == "invalid" } -> if (one != null) "This document's signature is invalid." else "At least one signature in this document is invalid."
-            signed.all { it.status == "valid" } -> if (one != null) "Signed by ${one.signer ?: "an unknown signer"}. The signature is valid." else "All ${signed.size} signatures are valid."
-            one != null -> "Signed by ${one.signer ?: "an unknown signer"}. The document hasn't changed since, but the signer isn't verified."
-            else -> "Signed. Some of the signers aren't verified."
+            signed.any { it.status == "invalid" } -> if (one != null) jText("This document's signature is invalid.", "توقيع هذا المستند غير صالح.") else jText("At least one signature in this document is invalid.", "يوجد توقيع غير صالح في هذا المستند.")
+            signed.all { it.status == "valid" } -> if (one != null) jText("Signed by ${one.signer ?: "an unknown signer"}. The signature is valid.", "موقّع بواسطة ${one.signer ?: "موقّع غير معروف"}. التوقيع صالح.") else jText("All ${signed.size} signatures are valid.", "جميع التواقيع (${signed.size}) صالحة.")
+            one != null -> jText("Signed by ${one.signer ?: "an unknown signer"}. The document hasn't changed since, but the signer isn't verified.", "موقّع بواسطة ${one.signer ?: "موقّع غير معروف"}. لم يتغير المستند، لكن لم تُتحقق هوية الموقّع.")
+            else -> jText("Signed. Some of the signers aren't verified.", "المستند موقّع. لم تُتحقق هوية بعض الموقّعين.")
         }
-        tell(text, "Details") { doc.controller.sheet = io.github.artcraftandroid.pdfcraft.ui.viewer.ViewerSheet.Signatures }
+        tell(text, jText("Details", "التفاصيل")) { doc.controller.sheet = io.github.artcraftandroid.pdfcraft.ui.viewer.ViewerSheet.Signatures }
     }
 
     /** Show signature [s] on its page, flashing its box. */
@@ -1436,7 +1469,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val sourceIndexes = (0 until (inventory?.length() ?: 0)).mapNotNull { i ->
             inventory?.optJSONObject(i)?.takeIf { it.optString("kind") == "text" }?.optInt("index")
         }.toSet()
-        val added = runCatching { eng.tool("content_list", mapOf("doc" to doc.id)).optJSONArray("items") }.getOrNull()
+        val added = runCatching { eng.tool("content_list", mapOf("doc" to doc.id, "page" to page + 1)).optJSONArray("items") }.getOrNull()
         val placed = (0 until (added?.length() ?: 0)).mapNotNull { i ->
             val o = added?.optJSONObject(i)?.takeIf { it.optInt("page") == page + 1 && it.optString("type") == "text" } ?: return@mapNotNull null
             val r = o.optJSONArray("rect") ?: return@mapNotNull null
@@ -2015,7 +2048,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Export to images: remember the format, then pick the pages in the page grid (Save or Share there). */
     fun exportImages(doc: OpenDocument, ext: String) {
-        appPrefs.edit().putString("imageFormat", ext).apply()
+        appPrefs.edit { putString("imageFormat", ext) }
         toolScreen = null
         imageExport = ext
         organizing = true
@@ -2033,7 +2066,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 val bmp = img.toBitmap()
                 // JPEG has no transparency: put the page on white
-                val flat = if (ext == "png") bmp else android.graphics.Bitmap.createBitmap(bmp.width, bmp.height, android.graphics.Bitmap.Config.ARGB_8888).also {
+                val flat = if (ext == "png") bmp else createBitmap(bmp.width, bmp.height).also {
                     val c = android.graphics.Canvas(it)
                     c.drawColor(android.graphics.Color.WHITE)
                     c.drawBitmap(bmp, 0f, 0f, null)
@@ -2233,20 +2266,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         get() = gridViewState
         set(v) {
             gridViewState = v
-            appPrefs.edit().putBoolean("gridView", v).apply()
+            appPrefs.edit { putBoolean("gridView", v) }
         }
 
     /** Starred: 0 by date, 1 by name. */
-    private var starSortState by mutableStateOf(appPrefs.getInt("starSort", 0))
+    private var starSortState by androidx.compose.runtime.mutableIntStateOf(appPrefs.getInt("starSort", 0))
     var starSort: Int
         get() = starSortState
         set(v) {
             starSortState = v
-            appPrefs.edit().putInt("starSort", v).apply()
+            appPrefs.edit { putInt("starSort", v) }
         }
 
     /** Bumped when a preference shown on screen changes outside Compose state. */
-    var prefsChanged by mutableStateOf(0)
+    var prefsChanged by androidx.compose.runtime.mutableIntStateOf(0)
 
     val thumbnails = io.github.artcraftandroid.pdfcraft.engine.Thumbnails(app)
 
@@ -2311,7 +2344,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** What [uri]'s thumbnail is drawn from: the file itself, the app's working copy, or the document. */
     private fun thumbPathFor(uri: String): String? {
-        val u = Uri.parse(uri)
+        val u = uri.toUri()
         return when (u.scheme) {
             "file" -> u.path
             else -> files.existingCopy(u)?.absolutePath ?: uri
@@ -2319,7 +2352,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun recentRows(): List<io.github.artcraftandroid.pdfcraft.ui.home.FileRow> = recentList.map { r ->
-        io.github.artcraftandroid.pdfcraft.ui.home.FileRow(r.uri, r.name, thumbPathFor(r.uri), locationOf(r.uri), r.opened, r.size, r.starred) { open(Uri.parse(r.uri)) }
+        io.github.artcraftandroid.pdfcraft.ui.home.FileRow(r.uri, r.name, thumbPathFor(r.uri), locationOf(r.uri), r.opened, r.size, r.starred) { open(r.uri.toUri()) }
     }
 
     fun starredRows(): List<io.github.artcraftandroid.pdfcraft.ui.home.FileRow> = recentRows().filter { it.starred }.let { l ->
@@ -2345,7 +2378,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return all.filter { q in it.name.lowercase() }.distinctBy { it.key }.distinctBy { sameFile(it.name, it.size) }
     }
 
-    private fun locationOf(uri: String): String = runCatching { files.displayLocation(Uri.parse(uri)) }.getOrDefault(jText("This device", "هذا الجهاز"))
+    private fun locationOf(uri: String): String = runCatching { files.displayLocation(uri.toUri()) }.getOrDefault(jText("This device", "هذا الجهاز"))
 
     fun clearRecents() {
         viewModelScope.launch {
@@ -2401,7 +2434,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** A file row's local file, for sharing and the like: the file itself, or a fresh copy. */
     private suspend fun localFileOf(row: io.github.artcraftandroid.pdfcraft.ui.home.FileRow): File? = withContext(Dispatchers.IO) {
-        val u = Uri.parse(row.key)
+        val u = row.key.toUri()
         runCatching { if (u.scheme == "file") File(requireNotNull(u.path)) else files.workingCopy(u) }.getOrNull()
     }
 
@@ -2427,7 +2460,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Combine the ticked files, in the order shown. */
     fun combineSelected(rows: List<io.github.artcraftandroid.pdfcraft.ui.home.FileRow>) {
         combineFiles.clear()
-        rows.take(12).forEach { combineFiles.add(PickedFile(Uri.parse(it.key), it.name, it.size)) }
+        rows.take(12).forEach { combineFiles.add(PickedFile(it.key.toUri(), it.name, it.size)) }
         toolScreen = ToolScreen.Combine(null)
     }
 
@@ -2464,7 +2497,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun renameFile(row: io.github.artcraftandroid.pdfcraft.ui.home.FileRow, newName: String) {
         viewModelScope.launch {
             val name = DocumentFiles.safeName(newName.trim())
-            val u = Uri.parse(row.key)
+            val u = row.key.toUri()
             val ok = withContext(Dispatchers.IO) {
                 runCatching {
                     when {
@@ -2532,7 +2565,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteFile(row: io.github.artcraftandroid.pdfcraft.ui.home.FileRow) {
         viewModelScope.launch {
-            val u = Uri.parse(row.key)
+            val u = row.key.toUri()
             val ok = withContext(Dispatchers.IO) {
                 runCatching {
                     when {
@@ -2568,7 +2601,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun updateFormSuggestions(on: Boolean) {
         formSuggestions = on
-        appPrefs.edit().putBoolean("formSuggestions", on).apply()
+        appPrefs.edit { putBoolean("formSuggestions", on) }
     }
 
     /** Words typed into form fields before, newest first. */
@@ -2581,11 +2614,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun rememberSuggestion(value: String) {
         if (!formSuggestions || value.isBlank() || value.length > 200) return
         val all = appPrefs.getString("suggestions", "").orEmpty().split('\n').filter { it.isNotBlank() && it != value }
-        appPrefs.edit().putString("suggestions", (listOf(value) + all).take(200).joinToString("\n")).apply()
+        appPrefs.edit { putString("suggestions", (listOf(value) + all).take(200).joinToString("\n")) }
     }
 
     fun clearFormSuggestions() {
-        appPrefs.edit().remove("suggestions").apply()
+        appPrefs.edit { remove("suggestions") }
         tell(jText("Suggestions cleared", "تم مسح الاقتراحات"))
     }
 

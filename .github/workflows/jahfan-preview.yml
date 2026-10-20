@@ -62,7 +62,7 @@ jobs:
       - name: Build preview and run Android unit tests
         working-directory: apps/pdfcraft-android/android
         shell: pwsh
-        run: ./gradlew.bat assembleDebug testDebugUnitTest -Ppdfcraft.abis=arm64-v8a --no-daemon
+        run: ./gradlew.bat assembleDebug testDebugUnitTest lintDebug -Ppdfcraft.abis=arm64-v8a --no-daemon
       - uses: actions/upload-artifact@v7
         with:
           name: jahfan-preview-arm64

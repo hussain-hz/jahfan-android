@@ -1,4 +1,4 @@
-# Jahfan preview validation — 2026-10-19
+# Jahfan preview validation — 2026-10-20
 
 Engine: PdfCraft **0.9.0**, upstream release commit `645016addcfb9078c557f0189559ab47cdcee057`, plus the preserved Android compatibility extensions documented in JAHFAN.md.
 
@@ -6,13 +6,13 @@ Engine: PdfCraft **0.9.0**, upstream release commit `645016addcfb9078c557f018955
 
 | Suite | Passed | Failed |
 | --- | ---: | ---: |
-| Android mobile bridge / engine workflows | 21 | 0 |
-| Android JVM unit tests | 55 | 0 |
+| Android mobile bridge / engine workflows | 25 | 0 |
+| Android JVM unit tests | 60 | 0 |
 | Annotation library | 42 | 0 |
 | PDF creation and Office import | 49 | 0 |
 | PDF export | 26 | 0 |
 | PDF rendering and inspection | 301 | 0 |
-| Total | 494 | 0 |
+| Total | 503 | 0 |
 
 The original mobile suite also passed all 16 tests before the engine update. The upgraded suite includes explicit checks for Office import → Excel export → PDF save/reopen and invalid photo detection. Voice comment creation, extraction and save/reopen, digital signatures and signer trust, forms, search, selection, annotations, rendering, passwords, attachments and undo are covered by the mobile tests.
 
@@ -60,3 +60,26 @@ This preview is debug-signed. Production signing, full manual testing of every t
 - Added a lower-corner Fit page button, initially hidden, shown after zoom changes, hidden again after fitting. On the emulator it appeared after double-tap zoom in the Arabic viewer and disappeared after fitting. The button remains available with the viewer bars hidden.
 - All 21 mobile engine tests and all 55 JVM tests passed. New JVM cases cover equal vertical/horizontal resize sensitivity and fitting continuous/single-page mode between unequal toolbar insets, including the first and last page.
 - Android ARM64/x86_64 build and the Arabic emulator visual checks succeeded. The deliverable remains a debug-signed preview for physical-phone feedback.
+
+## Audit corrections — 2026-10-20, 0.1.0-beta.5
+
+- Added `DocumentSaver` and a durable `RecoveryStore`: saves serialize local persistence and external publication; local checkpoints run after 600 ms without edits. Opening a second document uses the same failure prompt as closing. A pending working copy is reused after process restart instead of overwritten from the old source. File-URI publication uses a synced staging file and atomic move; arbitrary document providers retain the recovery copy until successful publication (their external writes cannot be assumed atomic).
+- On the API 37 emulator, moved Arabic text, observed its recovery marker, force-stopped the process and reopened the source. The app displayed the recovery message. Opening another file while the original was read-only displayed Save copy/Discard and retained the current document.
+- Added regression coverage for a simulated interrupted external write and retry, recovery across a recreated store, and retention of recent share files. Shares are retained for at least 24 hours; old entries expire after seven days or under the 256 MiB cleanup policy.
+- Opposing diagonal resize deltas are continuous; horizontal and vertical drags retain equal sensitivity. Dragging shows a translucent crop preview of the selected content, with a single final undoable edit. TalkBack actions provide movement and size changes. The preview also includes background pixels within the selection; it is not a separate vector extraction of the object.
+- Text-only edits skip unrelated widget/comment/link reloads; annotation edits retain comments refresh, and unknown/structural edits conservatively refresh everything. Added-content queries accept a page filter. Page-image cache sizing uses the real app memory class.
+- A uniformly styled, upright source paragraph can fall back to the bundled Arabic shaped-content path when its source font cannot support a whole-text replacement. The original paragraph is removed and its replacement added in one atomic undoable batch. Tests cover Arabic and Arabic/English text, save/reopen/render, one-step undo/redo and rollback for unsupported characters. Mixed styles, rotations and explicit formatting are conservatively refused rather than flattened.
+- Fixed all four Lint errors, primitive state boxing, dynamic window sizing, scrolling composition reads, backup configuration, language bundle configuration and KTX suggestions. Preview CI now runs Lint. Remaining Lint warnings concern pinned dependency/toolchain versions, target-SDK/API compatibility, and an optional storage-allocation API improvement; none are suppressed. Production builds now require a release key or an explicitly unsigned build instead of silently using a debug key.
+- Automated validation: 60 Android JVM tests and 25 mobile native tests passed. The manual host benchmark is an additional ignored-by-default test, run separately. The full automation-library suite also passed all 35 tests (additional to the cumulative table above). The older 418 core-library results in that table were not rerun in this audit-fix turn.
+
+### Reproducible host baseline
+
+`python tools/generate-benchmark.py <directory>` creates deterministic text/vector fixtures. Set `JAHFAN_BENCHMARK_DIR` and run `cargo test -p pdfcraft-android large_document_benchmark -- --ignored --nocapture` with the required Arabic font.
+
+| Pages | Open ms | First-page render ms | Add Arabic text ms |
+| --- | ---: | ---: | ---: |
+| 150 | 302 | 10 | 5 |
+| 500 | 14 | 10 | 5 |
+| 1000 | 21 | 11 | 11 |
+
+These are single host measurements, with cold initialization affecting the first case. They are not before/after comparisons, phone-frame-rate results, or image-heavy/scanned-PDF benchmarks. Physical-device and long-session profiling remain necessary before production.

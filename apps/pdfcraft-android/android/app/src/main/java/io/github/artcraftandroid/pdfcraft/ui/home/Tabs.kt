@@ -110,7 +110,7 @@ private fun OnThisDevice(vm: AppViewModel) {
     val c = pdfColors
     BackHandler { vm.filesShowLocal = false }
     LaunchedEffect(Unit) { vm.scanLocal() }
-    var sort by remember { mutableStateOf(0) }
+    var sort by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().safeTopPadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -226,7 +226,7 @@ fun ToolsTab(vm: AppViewModel) {
 fun SearchTab(vm: AppViewModel) {
     val c = pdfColors
     var query by remember { mutableStateOf("") }
-    var sort by remember { mutableStateOf(0) }
+    var sort by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var menu by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.scanLocal() }
     Column(Modifier.fillMaxSize().safeTopPadding()) {
@@ -346,7 +346,7 @@ fun SettingsScreen(vm: AppViewModel) {
 private fun Preferences(vm: AppViewModel) {
     val c = pdfColors
     var authorDialog by remember { mutableStateOf(false) }
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     Section(jText("Language", "اللغة"))
     SheetRow(null, "العربية", { activity?.let { io.github.artcraftandroid.pdfcraft.JahfanLanguage.select(it, "ar") } }, checked = io.github.artcraftandroid.pdfcraft.JahfanLanguage.current == "ar")
     SheetRow(null, "English", { activity?.let { io.github.artcraftandroid.pdfcraft.JahfanLanguage.select(it, "en") } }, checked = io.github.artcraftandroid.pdfcraft.JahfanLanguage.current == "en")

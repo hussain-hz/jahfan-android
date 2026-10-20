@@ -1,5 +1,7 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
+import androidx.core.graphics.toColorInt
+
 import io.github.artcraftandroid.pdfcraft.jText
 
 import androidx.compose.foundation.Canvas
@@ -639,4 +641,4 @@ fun baseFont(name: String): String {
     }
 }
 
-fun parseHex(s: String): Color = runCatching { Color(android.graphics.Color.parseColor(s)) }.getOrDefault(Color.Black)
+fun parseHex(s: String): Color = runCatching { Color(s.toColorInt()) }.getOrDefault(Color.Black)

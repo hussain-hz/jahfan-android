@@ -50,4 +50,12 @@ class ObjectTransformTest {
         assertEquals(180f, scaledObject(text, Offset(0f, 60f), page, 0.1f).width, 0.001f)
     }
 
+    @Test fun opposingDiagonalMotionIsContinuousAndReturnsToOrigin() {
+        val r = Rect(100f, 100f, 200f, 120f)
+        val a = scaledObject(r, Offset(20f, -19f), page, 0.1f)
+        val b = scaledObject(r, Offset(20f, -21f), page, 0.1f)
+        assertTrue(kotlin.math.abs(a.width - b.width) < 3f)
+        assertEquals(r, scaledObject(r, Offset.Zero, page, 0.1f))
+        assertEquals(r, scaledObject(r, Offset(20f, -20f), page, 0.1f))
+    }
 }

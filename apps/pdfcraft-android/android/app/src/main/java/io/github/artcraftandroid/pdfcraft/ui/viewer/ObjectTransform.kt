@@ -23,6 +23,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.artcraftandroid.pdfcraft.jText
@@ -40,7 +43,10 @@ internal fun movedObject(r: Rect, delta: Offset, page: Rect): Rect {
 internal fun scaledObject(r: Rect, delta: Offset, page: Rect, minFactor: Float, maxFactor: Float = Float.MAX_VALUE): Rect {
     if (r.width <= 0f || r.height <= 0f) return r
     // Equal sensitivity on both axes, including thin text: vertical drags must not disappear.
-    val dominant = if (kotlin.math.abs(delta.x) >= kotlin.math.abs(delta.y)) delta.x else delta.y
+    val weight = kotlin.math.abs(delta.x) + kotlin.math.abs(delta.y)
+    val dominant = if (weight == 0f) 0f else if (delta.x * delta.y >= 0f) {
+        if (kotlin.math.abs(delta.x) >= kotlin.math.abs(delta.y)) delta.x else delta.y
+    } else (delta.x * kotlin.math.abs(delta.x) + delta.y * kotlin.math.abs(delta.y)) / weight
     val wanted = 1f + dominant / maxOf(r.width, r.height)
     val limit = minOf(maxFactor, (page.right - r.left) / r.width, (page.bottom - r.top) / r.height).coerceAtLeast(0.01f)
     val factor = wanted.coerceIn(minOf(minFactor, limit), limit)
@@ -89,6 +95,17 @@ fun BoxScope.ObjectTransformOverlay(
     if (!frame.overlaps(viewport)) return
     val accent = Color(0xFF448AFF)
     Canvas(Modifier.fillMaxSize()) {
+        if (active || pending) {
+            doc.images.latestBase(page)?.let { base ->
+                val sx = (rect.left * base.scale).roundToInt().coerceIn(0, base.bitmap.width - 1)
+                val sy = (rect.top * base.scale).roundToInt().coerceIn(0, base.bitmap.height - 1)
+                val sw = (rect.width * base.scale).roundToInt().coerceIn(1, base.bitmap.width - sx)
+                val sh = (rect.height * base.scale).roundToInt().coerceIn(1, base.bitmap.height - sy)
+                drawImage(base.bitmap, srcOffset = IntOffset(sx, sy), srcSize = IntSize(sw, sh),
+                    dstOffset = IntOffset(frame.left.roundToInt(), frame.top.roundToInt()),
+                    dstSize = IntSize(frame.width.roundToInt().coerceAtLeast(1), frame.height.roundToInt().coerceAtLeast(1)), alpha = 0.85f)
+            }
+        }
         drawRect(accent.copy(alpha = if (active) 0.12f else 0.04f), frame.topLeft, frame.size)
         drawRect(accent, frame.topLeft, frame.size, style = Stroke(2.dp.toPx()))
     }
@@ -102,13 +119,31 @@ fun BoxScope.ObjectTransformOverlay(
         if (scale) onScale(draft.width / rect.width, finished) else onMove(draft.left - rect.left, draft.top - rect.top, finished)
     }
     fun cancel() { draft = rect; handlePoint = null; active = false; onActive(false) }
+    fun accessibleMove(dx: Float, dy: Float): Boolean {
+        if (pending) return false
+        draft = movedObject(rect, Offset(dx, dy), bounds); finish(false); return true
+    }
+    fun accessibleScale(delta: Float): Boolean {
+        if (pending) return false
+        draft = scaledObject(rect, Offset(maxOf(rect.width, rect.height) * delta, 0f), bounds, minFactor, maxFactor)
+        finish(true); return true
+    }
     // The document remains scrollable outside this touch target. A tap does not open the keyboard.
     val touch = with(density) { 48.dp.toPx() }
     val body = Rect(frame.center.x - maxOf(frame.width, touch) / 2, frame.center.y - maxOf(frame.height, touch) / 2,
         frame.center.x + maxOf(frame.width, touch) / 2, frame.center.y + maxOf(frame.height, touch) / 2).intersect(viewport)
     Box(Modifier.align(AbsoluteAlignment.TopLeft).zIndex(1f).absoluteOffset { IntOffset(body.left.roundToInt(), body.top.roundToInt()) }
         .size(with(density) { body.width.toDp() }, with(density) { body.height.toDp() })
-        .semantics { contentDescription = jText("Drag selected item", "اسحب العنصر المحدد") }
+        .semantics {
+            contentDescription = jText("Drag selected item", "اسحب العنصر المحدد")
+            customActions = listOf(
+                CustomAccessibilityAction(jText("Move right", "تحريك يمينًا")) { accessibleMove(5f, 0f) },
+                CustomAccessibilityAction(jText("Move left", "تحريك يسارًا")) { accessibleMove(-5f, 0f) },
+                CustomAccessibilityAction(jText("Move up", "تحريك لأعلى")) { accessibleMove(0f, -5f) },
+                CustomAccessibilityAction(jText("Move down", "تحريك لأسفل")) { accessibleMove(0f, 5f) },
+                CustomAccessibilityAction(jText("Enlarge", "تكبير")) { accessibleScale(0.1f) },
+                CustomAccessibilityAction(jText("Shrink", "تصغير")) { accessibleScale(-0.1f) })
+        }
         .pointerInput(identity, rect, ppp, pending) {
             var total = Offset.Zero
             detectDragGestures(onDragStart = { total = Offset.Zero; if (!pending) { active = true; onActive(true) } },
