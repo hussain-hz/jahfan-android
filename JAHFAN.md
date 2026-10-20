@@ -9,7 +9,7 @@ Android PDF reader and editor with the original PdfCraft Android interface, Arab
 - The user-supplied Arabic source archive is a translation reference only. Its older engine and application logic are not used as the foundation.
 - Upstream MIT / Apache-2.0 notices remain in the repository. Jahfan is a modified, unofficial application.
 
-Application ID: `com.jahfan.pdf` (debug builds add `.debug`). Interface language follows the device initially and can be changed under Settings → Preferences → Language. Android 13+ also supports the system's per-app language setting. Document text and read-aloud voices are independent of the interface language.
+Application ID: `com.jahfan.pdf` (debug and optimized preview builds add `.debug`). Interface language follows the device initially and can be changed under Settings → Preferences → Language. Android 13+ also supports the system's per-app language setting. Document text and read-aloud voices are independent of the interface language.
 
 ## Mobile compatibility extensions
 
@@ -36,10 +36,10 @@ git clone https://github.com/storytold/craft-fonts .build-inputs/craft-fonts
 git -C .build-inputs/craft-fonts checkout d1cf47d05e04426615fbda1d637b9ca6b1e7af35
 . ./tools/prepare-arabic-fonts.ps1 -SourceDirectory .build-inputs/craft-fonts
 cd apps/pdfcraft-android/android
-./gradlew.bat assembleDebug testDebugUnitTest -Ppdfcraft.abis=arm64-v8a
+./gradlew.bat assemblePreview testDebugUnitTest lintPreview -Ppdfcraft.abis=arm64-v8a
 ```
 
-The installed NDK may be selected explicitly with `-Pjahfan.ndkVersion=VERSION`. The default stays pinned for reproducible CI. Preview APKs are debug-signed; a private release signing key must be configured before distribution as a production release.
+The installed NDK may be selected explicitly with `-Pjahfan.ndkVersion=VERSION`. The default stays pinned for reproducible CI. The `preview` build enables R8 code/resource shrinking and keeps the debug application ID and signing key for local updates. `debug` remains available for development. Preview APKs are debug-signed; a private release signing key must be configured before distribution as a production release.
 
 GitHub Actions builds a private downloadable preview artifact and runs the original mobile compatibility tests and Android unit tests. Manual device checks remain necessary for layout, language switching, reading, editing, forms, signatures and large-file performance. Passing compilation does not prove all features or performance.
 

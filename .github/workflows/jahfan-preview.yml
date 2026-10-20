@@ -62,15 +62,18 @@ jobs:
       - name: Build preview and run Android unit tests
         working-directory: apps/pdfcraft-android/android
         shell: pwsh
-        run: ./gradlew.bat assembleDebug testDebugUnitTest lintDebug -Ppdfcraft.abis=arm64-v8a --no-daemon
+        run: ./gradlew.bat assemblePreview testDebugUnitTest lintPreview -Ppdfcraft.abis=arm64-v8a --no-daemon
       - uses: actions/upload-artifact@v7
         with:
           name: jahfan-preview-arm64
-          path: apps/pdfcraft-android/android/app/build/outputs/apk/debug/app-debug.apk
+          path: apps/pdfcraft-android/android/app/build/outputs/apk/preview/app-preview.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: jahfan-test-results
-          path: apps/pdfcraft-android/android/app/build/reports/tests/
+          path: |
+            apps/pdfcraft-android/android/app/build/reports/tests/
+            apps/pdfcraft-android/android/app/build/reports/lint-results-preview.*
+            apps/pdfcraft-android/android/app/build/outputs/mapping/preview/mapping.txt
           if-no-files-found: ignore

@@ -924,16 +924,35 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Record a voice comment at [at], once the microphone is allowed. */
     fun startVoice(doc: OpenDocument, at: PagePoint) {
         val app = getApplication<Application>()
-        if (app.cacheDir.usableSpace < 60L * 1024 * 1024) {
-            tell(jText("Not enough free storage to record. Free up some space and try again.", "لا توجد مساحة كافية للتسجيل. أفرغ بعض المساحة وحاول مجددًا."))
-            return
-        }
-        val prompt = VoicePrompt(doc, at)
-        if (androidx.core.content.ContextCompat.checkSelfPermission(app, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            voicePrompt = prompt
-        } else {
-            pendingVoice = prompt
-            micRequests.trySend(Unit)
+        viewModelScope.launch {
+            val enoughSpace = withContext(Dispatchers.IO) {
+                val required = 60L * 1024 * 1024
+                val storage = app.getSystemService(android.os.storage.StorageManager::class.java)
+                try {
+                    val volume = storage.getUuidForPath(app.cacheDir)
+                    if (storage.getAllocatableBytes(volume) < required) false else {
+                        // Reclaim eligible cache before the recorder starts writing.
+                        storage.allocateBytes(volume, required)
+                        true
+                    }
+                } catch (_: java.io.IOException) {
+                    app.cacheDir.usableSpace >= required
+                } catch (_: SecurityException) {
+                    app.cacheDir.usableSpace >= required
+                }
+            }
+            if (doc.closed || doc.closing || document !== doc) return@launch
+            if (!enoughSpace) {
+                tell(jText("Not enough free storage to record. Free up some space and try again.", "لا توجد مساحة كافية للتسجيل. أفرغ بعض المساحة وحاول مجددًا."))
+                return@launch
+            }
+            val prompt = VoicePrompt(doc, at)
+            if (androidx.core.content.ContextCompat.checkSelfPermission(app, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                voicePrompt = prompt
+            } else {
+                pendingVoice = prompt
+                micRequests.trySend(Unit)
+            }
         }
     }
 

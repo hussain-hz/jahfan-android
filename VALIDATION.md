@@ -83,3 +83,18 @@ This preview is debug-signed. Production signing, full manual testing of every t
 | 1000 | 21 | 11 | 11 |
 
 These are single host measurements, with cold initialization affecting the first case. They are not before/after comparisons, phone-frame-rate results, or image-heavy/scanned-PDF benchmarks. Physical-device and long-session profiling remain necessary before production.
+
+
+## Optimized preview — 2026-10-20, 0.1.0-beta.6
+
+- Added a non-debuggable `preview` build using release R8/resource shrinking with the existing debug package ID and signing key. Production release signing requirements remain enforced. CI now publishes this optimized preview and retains lint reports and the R8 mapping.
+- ARM64 APK: beta.5 was 108,319,904 bytes (103.30 MiB); beta.6 is 46,280,209 bytes (44.14 MiB), a 57.27% reduction. The old incremental ZIP contained about 31.6 MB of gaps; the new APK was freshly packaged. The remainder of the reduction comes from release shrinking/packaging. This measures the APK file, not installed storage or runtime speed.
+- The ARM64 engine shared library, both OCR model files and Arabic font licence are byte-identical to beta.5. Arabic remains embedded in the unchanged native library. Only ARM64 native libraries are in the phone APK.
+- Updated Gradle 9.8.2 (official distribution SHA-256 verified), AGP 9.4.1, Kotlin Compose 2.4.21, Core 1.19.1, Lifecycle 2.11.0, Activity 1.13.0, Coroutines 1.11.0 and ExifInterface 1.4.2. Target SDK is now 37; minimum remains 29. Reviewed official Android 17 behavior changes; no app use of MessageQueue reflection, static-final mutation, RemoteViews widgets or locked orientation was found.
+- Voice-comment storage preflight runs on Dispatchers.IO, uses StorageManager allocatable space and allocation to reclaim eligible cache, and falls back to usable space on I/O/security failures. A closed/replaced document cannot open a recording prompt after the asynchronous check.
+- All 60 JVM tests passed. Final `assemblePreview testDebugUnitTest lintPreview` succeeded. Lint: zero errors, two UnusedAttribute warnings for localeConfig/enableOnBackInvokedCallback on API <33, intentionally retained without suppression. Compiler/tool deprecation notices are separate from this lint count; AGP still calls deprecated Gradle Configuration.setVisible.
+- On API 37 x86_64, installed the optimized preview over the existing app without clearing data, opened/rendered Arabic, dragged its body and resized vertically (selection width 286 to 417 px). After the toolchain upgrade, installed again, reopened the modified document, verified the read-only save protection prompt, saved a new copy through the system picker and reopened it; connected Arabic and transformed placement/size remained visible.
+- apksigner verified the final ARM64 APK. Its certificate matches beta.5. SHA-256: `f872e29a5c445047cb27e48ca31f9c8ad83c2c6a0bab6f6252b16a57116d2240`.
+- Native engine code did not change in this turn; its previous native regression results were not rerun. Physical ARM64 device testing, older Android device coverage, low-storage fault injection and a production signing key remain outstanding. Local preview update compatibility was verified; independently generated CI debug keys are not guaranteed to match local keys.
+
+References: [Android 17 behavior changes](https://developer.android.com/about/versions/17/behavior-changes-17), [AGP compatibility](https://developer.android.com/build/releases/agp-9-4-0-release-notes), [AndroidX release notes](https://developer.android.com/jetpack/androidx/versions), [Kotlin releases](https://kotlinlang.org/docs/releases.html).

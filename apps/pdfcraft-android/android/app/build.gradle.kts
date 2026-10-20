@@ -241,7 +241,7 @@ android {
     defaultConfig {
         applicationId = "com.jahfan.pdf"
         minSdk = minApi
-        targetSdk = 36
+        targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersion
         ndk { abiFilters.addAll(rustAbis) }
@@ -270,6 +270,13 @@ android {
             // reproducible builds: no record of the checkout in the APK
             vcsInfo { include = false }
         }
+    }
+    // Installable, optimized previews retain the debug app identity and signing key.
+    buildTypes.create("preview") {
+        initWith(buildTypes.getByName("release"))
+        applicationIdSuffix = ".debug"
+        signingConfig = signingConfigs.getByName("debug")
+        matchingFallbacks += listOf("release")
     }
     // reproducible builds: no dependency metadata signing block (F-Droid's check rejects it)
     dependenciesInfo {
