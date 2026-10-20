@@ -43,4 +43,11 @@ class ObjectTransformTest {
             assertEquals(Rect(125f, 240f, 305f, 294f), movedObject(signature, pixels / pixelsPerPoint, page))
         }
     }
+    @Test fun verticalAndHorizontalDragsHaveEqualEffectOnThinText() {
+        val text = Rect(100f, 200f, 220f, 214f)
+        assertEquals(scaledObject(text, Offset(60f, 0f), page, 0.1f), scaledObject(text, Offset(0f, 60f), page, 0.1f))
+        assertEquals(scaledObject(text, Offset(-60f, 0f), page, 0.1f), scaledObject(text, Offset(0f, -60f), page, 0.1f))
+        assertEquals(180f, scaledObject(text, Offset(0f, 60f), page, 0.1f).width, 0.001f)
+    }
+
 }

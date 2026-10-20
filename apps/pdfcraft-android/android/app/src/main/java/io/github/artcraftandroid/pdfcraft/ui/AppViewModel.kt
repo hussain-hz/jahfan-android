@@ -1440,10 +1440,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val placed = (0 until (added?.length() ?: 0)).mapNotNull { i ->
             val o = added?.optJSONObject(i)?.takeIf { it.optInt("page") == page + 1 && it.optString("type") == "text" } ?: return@mapNotNull null
             val r = o.optJSONArray("rect") ?: return@mapNotNull null
+            val ink = o.optJSONArray("ink_rect") ?: r
             val index = o.optInt("index")
             io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph(page, -index, o.optString("text"),
-                FloatArray(4) { r.optDouble(it).toFloat() }, o.optString("font"), o.optDouble("size", 12.0).toFloat(),
-                o.optBoolean("bold"), o.optBoolean("italic"), null, addedIndex = index)
+                FloatArray(4) { ink.optDouble(it).toFloat() }, o.optString("font"), o.optDouble("size", 12.0).toFloat(),
+                o.optBoolean("bold"), o.optBoolean("italic"), null, addedIndex = index, placementBox = FloatArray(4) { r.optDouble(it).toFloat() })
         }
         paragraphs[page] = source.filter { inventory == null || it.number in sourceIndexes } + placed
         editSelection?.takeIf { it.page == page }?.let { sel -> editSelection = paragraphs[page]?.firstOrNull { it.number == sel.number } }
@@ -1539,9 +1540,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun transformParagraph(doc: OpenDocument, para: io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph,
         dx: Float, dy: Float, factor: Float, finished: () -> Unit) {
         val geometry = if (para.addedIndex != null) {
-            mapOf("rect" to listOf(para.box[0] + dx, para.box[1] + dy,
-                para.box[0] + dx + (para.box[2] - para.box[0]) * factor,
-                para.box[1] + dy + (para.box[3] - para.box[1]) * factor).map { it.toDouble() }) +
+            val source = para.placementBox ?: para.box
+            val left = source[0] + dx + (para.box[0] - source[0]) * (1f - factor)
+            val top = source[1] + dy + (para.box[1] - source[1]) * (1f - factor)
+            mapOf("rect" to listOf(left, top, left + (source[2] - source[0]) * factor,
+                top + (source[3] - source[1]) * factor).map { it.toDouble() }) +
                 (if (factor != 1f) mapOf("size" to (para.size * factor).toDouble()) else emptyMap())
         } else if (factor == 1f) mapOf("dx" to dx.toDouble(), "dy" to -dy.toDouble()) else
             mapOf("size" to (para.size * factor).toDouble(), "width" to ((para.box[2] - para.box[0]) * factor).toDouble())

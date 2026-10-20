@@ -469,6 +469,10 @@ fn placed_text_can_move_and_scale_without_changing_its_words() {
         s.execute("page_add_text".into(), json!({"doc":doc,"page":1,"text":text,"at":[80,200],"size":12}).to_string()).unwrap();
         let list = || -> Value { serde_json::from_str(&s.execute("content_list".into(), json!({"doc":doc}).to_string()).unwrap()).unwrap() };
         let before = list()["items"][0].clone();
+        let ink = &before["ink_rect"];
+        let ink_width = ink[2].as_f64().unwrap() - ink[0].as_f64().unwrap();
+        let wrap_width = before["rect"][2].as_f64().unwrap() - before["rect"][0].as_f64().unwrap();
+        assert!(ink_width > 0.0 && ink_width < wrap_width, "short text gets a compact selection, not the empty wrap area");
         let rect: Vec<f64> = before["rect"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
         let moved = vec![rect[0] + 40.0, rect[1] + 30.0, rect[2] + 40.0, rect[3] + 30.0];
         s.execute("content_update".into(), json!({"doc":doc,"page":1,"index":1,"rect":moved}).to_string()).unwrap();

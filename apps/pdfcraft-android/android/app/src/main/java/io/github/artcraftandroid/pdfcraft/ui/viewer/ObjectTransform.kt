@@ -39,8 +39,9 @@ internal fun movedObject(r: Rect, delta: Offset, page: Rect): Rect {
 
 internal fun scaledObject(r: Rect, delta: Offset, page: Rect, minFactor: Float, maxFactor: Float = Float.MAX_VALUE): Rect {
     if (r.width <= 0f || r.height <= 0f) return r
-    // Project onto the diagonal: either horizontal or vertical finger movement scales naturally.
-    val wanted = 1f + (delta.x * r.width + delta.y * r.height) / (r.width * r.width + r.height * r.height)
+    // Equal sensitivity on both axes, including thin text: vertical drags must not disappear.
+    val dominant = if (kotlin.math.abs(delta.x) >= kotlin.math.abs(delta.y)) delta.x else delta.y
+    val wanted = 1f + dominant / maxOf(r.width, r.height)
     val limit = minOf(maxFactor, (page.right - r.left) / r.width, (page.bottom - r.top) / r.height).coerceAtLeast(0.01f)
     val factor = wanted.coerceIn(minOf(minFactor, limit), limit)
     return Rect(r.left, r.top, r.left + r.width * factor, r.top + r.height * factor)
@@ -80,6 +81,7 @@ fun BoxScope.ObjectTransformOverlay(
     var draft by remember(identity, rect) { mutableStateOf(rect) }
     var active by remember(identity, rect) { mutableStateOf(false) }
     var pending by remember(identity, rect) { mutableStateOf(false) }
+    var handlePoint by remember(identity, rect) { mutableStateOf<Offset?>(null) }
     val a = doc.viewer.pageToScreen(page, draft.left, draft.top)
     val b = doc.viewer.pageToScreen(page, draft.right, draft.bottom)
     val frame = Rect(a, b)
@@ -92,13 +94,14 @@ fun BoxScope.ObjectTransformOverlay(
     }
     fun finish(scale: Boolean) {
         active = false
+        handlePoint = null
         onActive(false)
         if (draft == rect) return
         pending = true
         val finished = { pending = false; draft = rect }
         if (scale) onScale(draft.width / rect.width, finished) else onMove(draft.left - rect.left, draft.top - rect.top, finished)
     }
-    fun cancel() { draft = rect; active = false; onActive(false) }
+    fun cancel() { draft = rect; handlePoint = null; active = false; onActive(false) }
     // The document remains scrollable outside this touch target. A tap does not open the keyboard.
     val touch = with(density) { 48.dp.toPx() }
     val body = Rect(frame.center.x - maxOf(frame.width, touch) / 2, frame.center.y - maxOf(frame.height, touch) / 2,
@@ -114,29 +117,32 @@ fun BoxScope.ObjectTransformOverlay(
                 if (!pending) { total += delta / ppp; draft = movedObject(rect, total, bounds) }
             }
         })
-    // Controls sit outside small text boxes so their touch targets do not cover the whole text.
-    for (resize in listOf(false, true)) {
-        val desired = if (resize) frame.bottomRight + Offset(touch / 2, touch / 2) else Offset(frame.left - touch / 2, frame.center.y)
-        val center = Offset(desired.x.coerceIn(touch * 0.75f, maxOf(touch * 0.75f, doc.viewer.viewW - touch * 0.75f)),
-            desired.y.coerceIn(doc.viewer.padTop + touch / 2, maxOf(doc.viewer.padTop + touch / 2, doc.viewer.viewH - doc.viewer.padBottom - touch / 2)))
-        Canvas(Modifier.fillMaxSize()) { drawLine(accent, if (resize) frame.bottomRight else frame.centerLeft, center, 1.dp.toPx()) }
-        Box(Modifier.align(AbsoluteAlignment.TopLeft).zIndex(2f).absoluteOffset { IntOffset((center.x - touch / 2).roundToInt(), (center.y - touch / 2).roundToInt()) }
-            .size(48.dp)
-            .semantics { contentDescription = if (resize) jText("Resize selected item", "تغيير حجم العنصر المحدد") else jText("Move selected item", "تحريك العنصر المحدد") }
-            .pointerInput(identity, rect, ppp, pending) {
-                var total = Offset.Zero
-                detectDragGestures(onDragStart = { total = Offset.Zero; if (!pending) { active = true; onActive(true) } },
-                    onDragEnd = { if (!pending) finish(resize) }, onDragCancel = { if (!pending) cancel() }) { change, delta ->
-                    change.consume()
-                    if (!pending) {
-                        total += delta / ppp
-                        draft = if (resize) scaledObject(rect, total, bounds, minFactor, maxFactor) else movedObject(rect, total, bounds)
-                    }
+    // A single resize handle; movement uses the item's body, without a separate move button.
+    val desired = handlePoint ?: (frame.bottomRight + Offset(touch / 2, touch / 2))
+    val center = Offset(desired.x.coerceIn(touch * 0.75f, maxOf(touch * 0.75f, doc.viewer.viewW - touch * 0.75f)),
+        desired.y.coerceIn(doc.viewer.padTop + touch / 2, maxOf(doc.viewer.padTop + touch / 2, doc.viewer.viewH - doc.viewer.padBottom - touch / 2)))
+    val currentCenter by rememberUpdatedState(center)
+    Canvas(Modifier.fillMaxSize()) { drawLine(accent, frame.bottomRight, center, 1.dp.toPx()) }
+    Box(Modifier.align(AbsoluteAlignment.TopLeft).zIndex(2f).absoluteOffset { IntOffset((center.x - touch / 2).roundToInt(), (center.y - touch / 2).roundToInt()) }
+        .size(48.dp)
+        .semantics { contentDescription = jText("Resize selected item", "تغيير حجم العنصر المحدد") }
+        .pointerInput(identity, rect, ppp, pending) {
+            var total = Offset.Zero
+            var anchor = Offset.Zero
+            detectDragGestures(onDragStart = {
+                total = Offset.Zero; anchor = currentCenter
+                if (!pending) { active = true; handlePoint = anchor; onActive(true) }
+            }, onDragEnd = { if (!pending) finish(true) }, onDragCancel = { if (!pending) cancel() }) { change, delta ->
+                change.consume()
+                if (!pending) {
+                    total += delta / ppp
+                    handlePoint = anchor + total * ppp
+                    draft = scaledObject(rect, total, bounds, minFactor, maxFactor)
                 }
-            }, contentAlignment = Alignment.Center) {
-            Box(Modifier.size(30.dp).background(Color.White, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(if (resize) LucideIcons.Maximize2 else LucideIcons.Move, null, tint = accent, modifier = Modifier.size(22.dp))
             }
+        }, contentAlignment = Alignment.Center) {
+        Box(Modifier.size(30.dp).background(Color.White, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(LucideIcons.Maximize2, null, tint = accent, modifier = Modifier.size(22.dp))
         }
     }
 }

@@ -85,6 +85,18 @@ impl Automation {
                         v["size"] = json!(t.size);
                         v["bold"] = json!(t.bold);
                         v["italic"] = json!(t.italic);
+                        // Keep the editable wrapping box, but give touch UIs a compact selection.
+                        let mut ink = to_view(pdfcraft_engine::added_text_rect(t), ph);
+                        let available = (ink[2] - ink[0]).max(0.0);
+                        let width = if t.align == TextAlign::Justify { available } else { pdfcraft_engine::added_text_width(t).min(available) };
+                        let offset = match t.align {
+                            TextAlign::Center => (available - width) / 2.0,
+                            TextAlign::Right => available - width,
+                            _ => 0.0,
+                        };
+                        ink[0] += offset;
+                        ink[2] = ink[0] + width.max(1.0);
+                        v["ink_rect"] = json!(ink.map(|x| (x * 100.0).round() / 100.0));
                     }
                     AddedContent::Image(_) => v["type"] = json!("image"),
                 }

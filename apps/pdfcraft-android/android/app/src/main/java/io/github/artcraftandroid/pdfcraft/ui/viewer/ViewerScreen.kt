@@ -1,6 +1,8 @@
 package io.github.artcraftandroid.pdfcraft.ui.viewer
 
 import io.github.artcraftandroid.pdfcraft.jText
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 import android.app.Activity
 import android.os.SystemClock
@@ -268,6 +270,23 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
                 onTap = { ctl.goToPage = true },
             )
+        }
+
+        if (doc.viewer.fitButtonVisible && ctl.sheet == ViewerSheet.None && !ctl.searching) {
+            Row(
+                Modifier.align(Alignment.BottomEnd)
+                    .padding(end = 12.dp, bottom = with(density) { doc.viewer.padBottom.toDp() } + 12.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+                    .background(c.surface).border(1.dp, c.divider, androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button) { doc.viewer.fitPage() }
+                    .semantics { contentDescription = jText("Fit page to screen", "ملاءمة الصفحة للشاشة") }
+                    .height(48.dp).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(io.github.artcraftandroid.pdfcraft.ui.LucideIcons.Scan, null, tint = c.icon, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(jText("Fit page", "ملاءمة الصفحة"), color = c.text, fontSize = 14.sp)
+            }
         }
 
         HintToast(hint)

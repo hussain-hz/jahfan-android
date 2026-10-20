@@ -7,12 +7,12 @@ Engine: PdfCraft **0.9.0**, upstream release commit `645016addcfb9078c557f018955
 | Suite | Passed | Failed |
 | --- | ---: | ---: |
 | Android mobile bridge / engine workflows | 21 | 0 |
-| Android JVM unit tests | 52 | 0 |
+| Android JVM unit tests | 55 | 0 |
 | Annotation library | 42 | 0 |
 | PDF creation and Office import | 49 | 0 |
 | PDF export | 26 | 0 |
 | PDF rendering and inspection | 301 | 0 |
-| Total | 491 | 0 |
+| Total | 494 | 0 |
 
 The original mobile suite also passed all 16 tests before the engine update. The upgraded suite includes explicit checks for Office import → Excel export → PDF save/reopen and invalid photo detection. Voice comment creation, extraction and save/reopen, digital signatures and signer trust, forms, search, selection, annotations, rendering, passwords, attachments and undo are covered by the mobile tests.
 
@@ -51,3 +51,12 @@ This preview is debug-signed. Production signing, full manual testing of every t
 - On the API 37 emulator, Arabic text was selected, moved by dragging its body, and enlarged with the resize handle. A signature was drawn using the existing capture screen, placed, moved by its body and enlarged with the handle. Both results were visually checked in the Arabic interface. An English-interface text transform was also checked.
 - Screen-space overlays use absolute top-left alignment as well as absolute offsets. This prevents RTL layout from moving the touch targets away from the PDF object. The corrected menu positions stay within the viewport width.
 - The transform preview is an outline; the PDF artwork updates when the finger lifts. The preview remains a debug-signed ARM64 build, with physical-phone testing still needed.
+
+## Resize and fit refinement — 2026-10-20, 0.1.0-beta.4
+
+- Removed the separate four-arrow move control; the object body remains draggable.
+- Replaced diagonal projection with equal horizontal/vertical scale sensitivity. The resize control follows the finger on both axes during a gesture. On the Arabic API 37 emulator, a purely downward drag enlarged the text selection from approximately 401 to 540 screen pixels; a purely upward drag reduced it to approximately 411 pixels.
+- Added font-measured compact `ink_rect` data for added text while keeping its wrapping rectangle separate. Selection no longer spans the unused 200-point default wrap width for short text; movement/scaling preserves the source wrapping/alignment box. The mobile regression checks compact bounds for English and Arabic.
+- Added a lower-corner Fit page button, initially hidden, shown after zoom changes, hidden again after fitting. On the emulator it appeared after double-tap zoom in the Arabic viewer and disappeared after fitting. The button remains available with the viewer bars hidden.
+- All 21 mobile engine tests and all 55 JVM tests passed. New JVM cases cover equal vertical/horizontal resize sensitivity and fitting continuous/single-page mode between unequal toolbar insets, including the first and last page.
+- Android ARM64/x86_64 build and the Arabic emulator visual checks succeeded. The deliverable remains a debug-signed preview for physical-phone feedback.

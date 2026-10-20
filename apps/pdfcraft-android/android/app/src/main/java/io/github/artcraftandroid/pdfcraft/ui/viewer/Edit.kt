@@ -92,6 +92,7 @@ data class Paragraph(
     val italic: Boolean,
     val color: String?,
     val addedIndex: Int? = null,
+    val placementBox: FloatArray? = null,
 )
 
 /** A picture Edit PDF has selected: its number on the page and where it sits (points). */

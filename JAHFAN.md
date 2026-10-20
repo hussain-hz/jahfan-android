@@ -53,4 +53,10 @@ The startup coroutine now runs after all ViewModel properties are initialized, a
 
 ## Phone touch controls (0.1.0-beta.3)
 
-The text and signature creation flows are unchanged. After placement, the item is selected with finger-sized move and proportional resize controls. Drag its body or the four-arrow control to move it; drag the diagonal-arrow control to change size. Text size follows the scale, and signatures retain their proportions. Tap Edit text explicitly to type. Touch targets use PDF screen coordinates in both Arabic and English; movement stays on the same page, and each completed gesture is undoable. Added text uses its own engine content identity so Arabic shaping survives manipulation and save/reopen.
+The text and signature creation flows are unchanged. After placement, the item is selected with finger-sized move and proportional resize controls. Drag its body to move it; drag the diagonal-arrow control to change size. Text size follows the scale, and signatures retain their proportions. Tap Edit text explicitly to type. Touch targets use PDF screen coordinates in both Arabic and English; movement stays on the same page, and each completed gesture is undoable. Added text uses its own engine content identity so Arabic shaping survives manipulation and save/reopen.
+
+## Resize and fit refinement (0.1.0-beta.4)
+
+The separate move handle is removed. The resize handle follows the finger horizontally and vertically, and vertical drags have the same scaling sensitivity as horizontal drags even for thin text. Text selection uses a font-measured compact box; its original wrapping box is retained independently so moving/scaling does not change wrapping or alignment. Signature scaling keeps its proportions.
+
+A lower-corner Fit page button appears after a zoom change. It fits the current page inside the space between toolbars, preserves continuous/single-page mode and hides itself after fitting. Its label follows the application language.
