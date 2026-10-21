@@ -95,6 +95,7 @@ data class Paragraph(
     val color: String?,
     val addedIndex: Int? = null,
     val placementBox: FloatArray? = null,
+    val rows: List<InlineRow> = emptyList(),
 )
 
 /** A picture Edit PDF has selected: its number on the page and where it sits (points). */
@@ -396,8 +397,10 @@ private fun BoxScope.SelectedParagraph(vm: AppViewModel, doc: OpenDocument, para
         FloatingMenu(a, b, doc.viewer.padTop, doc.viewer.viewW) {
             MenuText(jText("Edit text", "تحرير النص")) { vm.startInlineEdit(para, selectAll = false) }
             MenuSplit()
-            MenuText(jText("Select all", "تحديد الكل")) { vm.startInlineEdit(para, selectAll = true) }
-            MenuSplit()
+            if (para.rows.isEmpty()) {
+                MenuText(jText("Select all", "تحديد الكل")) { vm.startInlineEdit(para, selectAll = true) }
+                MenuSplit()
+            }
             MenuText(jText("Delete", "حذف")) { vm.deleteParagraph(doc, para) }
         }
     }
@@ -447,6 +450,10 @@ private fun Modifier.fillMaxHeightRow(): Modifier = this.height(48.dp)
  */
 @Composable
 private fun BoxScope.InlineEditor(vm: AppViewModel, doc: OpenDocument, para: Paragraph) {
+    if (para.rows.isNotEmpty()) {
+        PositionedInlineEditor(vm, doc, para)
+        return
+    }
     val density = LocalDensity.current
     val (a, b) = screenBox(doc, para.page, para.box, with(density) { 3.dp.toPx() })
     val ppp = doc.viewer.pixelsPerPoint(para.page)
@@ -493,6 +500,8 @@ private fun BoxScope.InlineEditor(vm: AppViewModel, doc: OpenDocument, para: Par
                 onValueChange = { value = it },
                 textStyle = TextStyle(
                     color = parseHex(para.color ?: "#000000"), fontSize = sp, lineHeight = sp * 1.2f, fontFamily = family,
+                    textDirection = androidx.compose.ui.text.style.TextDirection.Content,
+                    textAlign = if (inlineRtl(value.text)) TextAlign.Right else TextAlign.Left,
                     fontWeight = if (para.bold) FontWeight.Bold else FontWeight.Normal,
                     fontStyle = if (para.italic) FontStyle.Italic else FontStyle.Normal,
                     textDecoration = if (vm.editUnderline[para.page to para.number] == true) TextDecoration.Underline else null,

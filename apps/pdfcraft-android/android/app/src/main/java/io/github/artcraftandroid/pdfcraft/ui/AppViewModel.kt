@@ -1484,6 +1484,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 bold = if (o.has("bold")) o.optBoolean("bold") else font.contains("Bold", true) || font.contains("Black", true) || font.contains("Heavy", true),
                 italic = if (o.has("italic")) o.optBoolean("italic") else font.contains("Italic", true) || font.contains("Oblique", true),
                 color = o.optString("color").takeIf { it.startsWith("#") },
+                rows = io.github.artcraftandroid.pdfcraft.ui.viewer.readInlineRows(o.optJSONArray("editor_rows")),
             )
         }
         // Keep added objects separate from extracted source paragraphs. In particular, Arabic

@@ -722,3 +722,22 @@ fn arabic_line_edit_and_styled_paragraph_roundtrip() {
         assert!(!s.find_in_page(reopened, 0, "مرحبا".into(), false, false).unwrap().is_empty());
     }
 }
+
+#[test]
+fn inline_editor_rows_keep_geometry_and_utf16_style_ranges() {
+    let s = MobileSession::new();
+    let doc = s.open(text_pdf("English text"), None).unwrap().id;
+    let result = s.execute("text_paragraphs".into(), json!({"doc":doc,"page":1}).to_string()).unwrap();
+    let result: Value = serde_json::from_str(&result).unwrap();
+    let block = &result["paragraphs"][0];
+    let rows = block["editor_rows"].as_array().unwrap();
+    assert_eq!(rows.iter().map(|r| r["text"].as_str().unwrap()).collect::<Vec<_>>().join("\n"), block["editor_text"].as_str().unwrap());
+    for row in rows {
+        assert!(row["baseline"].as_f64().unwrap().is_finite());
+        for run in row["runs"].as_array().unwrap() {
+            assert!(run["end"].as_u64().unwrap() <= row["text"].as_str().unwrap().encode_utf16().count() as u64);
+            assert!(run["size"].as_f64().unwrap() > 0.0);
+            assert_eq!(run["color"].as_array().unwrap().len(), 3);
+        }
+    }
+}

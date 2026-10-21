@@ -533,16 +533,40 @@ impl Automation {
                 let doc = self.doc_to_copy(&a)?;
                 let info = &doc.info.pages[page];
                 let r = |x: f32| (x as f64 * 100.0).round() / 100.0;
+                let source_lines = doc.text_lines(page);
                 let blocks: Vec<Value> = doc
                     .text_blocks(page)
                     .iter()
                     .enumerate()
                     .map(|(i, b)| {
                         let (u, v) = (info.user_to_view(b.rect[0] as f32, b.rect[1] as f32), info.user_to_view(b.rect[2] as f32, b.rect[3] as f32));
+                        let mut row_start = 0;
+                        let editor_rows: Vec<Value> = b.editor_text.split('\n').zip(&b.rows).map(|(text, members)| {
+                            let start = row_start;
+                            row_start += text.len() + 1;
+                            let runs: Vec<Value> = b.spans.iter().filter_map(|(range, index)| {
+                                if !members.contains(index) || range.end <= start || range.start >= start + text.len() { return None; }
+                                let line = source_lines.get(*index)?;
+                                let a = range.start.max(start) - start;
+                                let z = range.end.min(start + text.len()) - start;
+                                if a >= z || z > text.len() { return None; }
+                                Some(json!({ "start": text[..a].encode_utf16().count(), "end": text[..z].encode_utf16().count(),
+                                    "font": line.base_font, "size": line.size, "bold": line.bold, "italic": line.italic,
+                                    "color": line.color }))
+                            }).collect();
+                            let lines: Vec<_> = members.iter().filter_map(|i| source_lines.get(*i)).collect();
+                            let rect = lines.iter().fold([f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY], |mut a, l| {
+                                a[0] = a[0].min(l.rect[0]); a[1] = a[1].min(l.rect[1]); a[2] = a[2].max(l.rect[2]); a[3] = a[3].max(l.rect[3]); a
+                            });
+                            let (a, z) = (info.user_to_view(rect[0] as f32, rect[1] as f32), info.user_to_view(rect[2] as f32, rect[3] as f32));
+                            let baseline = lines.first().map(|l| { let p = l.baseline(); info.user_to_view(p[0] as f32, p[1] as f32)[1] }).unwrap_or(a[1]);
+                            json!({ "text": text, "rect": [a[0].min(z[0]), a[1].min(z[1]), a[0].max(z[0]), a[1].max(z[1])], "baseline": baseline, "runs": runs })
+                        }).collect();
                         json!({
                             "paragraph": i + 1,
                             "text": b.text,
                             "editor_text": b.editor_text,
+                            "editor_rows": editor_rows,
                             "rows": b.rows.iter().map(|row| row.iter().map(|i| i + 1).collect::<Vec<_>>()).collect::<Vec<_>>(),
                             "lines": b.lines.iter().map(|l| l + 1).collect::<Vec<_>>(),
                             "rect": [r(u[0].min(v[0])), r(u[1].min(v[1])), r(u[0].max(v[0])), r(u[1].max(v[1]))],
