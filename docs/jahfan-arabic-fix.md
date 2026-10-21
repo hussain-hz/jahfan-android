@@ -28,3 +28,9 @@ Font generation: tools/generate-arabic-static-fonts.py (fonttools 4.60.1). Sourc
 ## Practical limits
 
 A subset font cannot supply glyphs it never embedded. When a complete compatible source font is unavailable, the edited Arabic run uses Noto Sans Arabic and may differ visually from the original font. Scanned or outlined text has no editable character layer and still requires OCR. These changes do not claim support for every arbitrary PDF construction or every Unicode script.
+
+## beta.8 Android integration correction
+
+The Android paragraph loader previously fed the flattened `text` field into the inline editor, while native regression tests used `editor_text`. A single typed change therefore removed explicit source row breaks and caused mixed-style paragraphs to reflow. Android now loads `editor_text` verbatim (including whitespace and line breaks), falling back to `text` only if the field is absent or null. Commit, list and formatting actions consequently use the same row-preserving draft that the core expects. This corrects saved-document layout; the typing overlay itself remains a plain text field rather than a full WYSIWYG editor.
+
+Validation on the emulator: opened a separate copy of the supplied PDF, inspected the actual Android EditText (8 explicit rows), inserted one character in the name row, committed through the UI, and pulled the saved PDF. Independent MuPDF rendering at 2x found all changed pixels confined to [391, 133, 455, 145] PDF points (the name row); every pixel elsewhere was identical. The document remains a local-only test artifact. Android unit tests passed (60).

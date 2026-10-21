@@ -1476,7 +1476,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val rect = o.optJSONArray("rect") ?: return@mapNotNull null
             val font = o.optString("font")
             io.github.artcraftandroid.pdfcraft.ui.viewer.Paragraph(
-                page = page, number = o.optInt("paragraph"), text = o.optString("text"),
+                // Editing must retain source row breaks. `text` is flattened for reading/search;
+                // sending it back after typing causes the whole mixed-style block to reflow.
+                page = page, number = o.optInt("paragraph"),
+                text = if (o.has("editor_text") && !o.isNull("editor_text")) o.getString("editor_text") else o.optString("text"),
                 box = FloatArray(4) { k -> rect.optDouble(k).toFloat() }, font = font, size = o.optDouble("size", 12.0).toFloat(),
                 bold = if (o.has("bold")) o.optBoolean("bold") else font.contains("Bold", true) || font.contains("Black", true) || font.contains("Heavy", true),
                 italic = if (o.has("italic")) o.optBoolean("italic") else font.contains("Italic", true) || font.contains("Oblique", true),
