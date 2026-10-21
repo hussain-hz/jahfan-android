@@ -1377,7 +1377,16 @@ fn build_appearance(doc: &Document, d: &Dict) -> Option<Stream> {
 /// Store a built appearance on the annotation: the cheap half of [`set_appearance`].
 fn apply_appearance(doc: &mut Document, r: ObjRef, d: &Dict, stream: Stream) -> Result<(), AnnotError> {
     // Characters the standard fonts can't draw came out as `?`: mark the annotation with the first.
-    let missing = appearance::undrawable_text(d).map(|(_, c)| c);
+    let unicode = d.name(b"Subtype") == Some(b"FreeText")
+        && d.get(b"Contents")
+            .and_then(Object::as_string)
+            .is_some_and(|s| s.to_text().chars().any(|c| matches!(c as u32, 0x0600..=0x06ff | 0x0750..=0x077f | 0x08a0..=0x08ff)));
+    let stream = if unicode {
+        appearance::build_for_document(d, doc).ok_or_else(|| AnnotError::Unsupported("Arabic text cannot be shaped with the document font".into()))?
+    } else {
+        stream
+    };
+    let missing = if unicode { None } else { appearance::undrawable_text(d).map(|(_, c)| c) };
     let ap = doc.add(Object::Stream(stream));
     // A copy (a shared /AP is left alone) that keeps unknown entries; the old down and rollover
     // appearances would show the previous look on press or hover, so they go with the old /N.
@@ -1625,7 +1634,14 @@ fn fitted_box(doc: &Document, r: ObjRef, text: &str) -> Option<[f64; 4]> {
         let longest = text.lines().map(|l| appearance::text_width(l, size)).fold(0.0, f64::max);
         (longest + 2.0 * pad + 4.0).clamp(40.0, 300.0)
     };
-    let lines = appearance::wrap(text, size, (w - 2.0 * pad).max(1.0)).len().max(1) as f64;
+    let available = (w - 2.0 * pad).max(1.0);
+    let count = if text.chars().any(|c| matches!(c as u32, 0x0600..=0x06ff | 0x0750..=0x077f | 0x08a0..=0x08ff)) {
+        let face = pdfcraft_fonts::document_arabic_font()?;
+        pdfcraft_fonts::source_shaping::wrap(face.bytes, text, available / size).ok()?.len()
+    } else {
+        appearance::wrap(text, size, available).len()
+    };
+    let lines = count.max(1) as f64;
     Some([x0, top - lines * size * 1.2 - 2.0 * pad - 2.0, x0 + w, top])
 }
 

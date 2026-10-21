@@ -677,43 +677,7 @@ impl Automation {
                         other => return Err(ToolError::InvalidArgs(format!("unknown align {other:?}"))),
                     });
                 }
-                let normal = self.apply(&a, Edit::EditTextBlock { page, block: k as usize - 1, text: text.clone(), style: style.clone() });
-                let mut out = match normal {
-                    Ok(out) => out,
-                    Err(error) => {
-                        let message = error.to_string();
-                        let arabic = text.chars().any(|c| matches!(c as u32, 0x0600..=0x06ff | 0x0750..=0x077f | 0x08a0..=0x08ff));
-                        let lines = self.doc(&a)?.text_lines(page);
-                        let uniform = block.lines.iter().filter_map(|i| lines.get(*i)).all(|l|
-                            l.base_font == block.base_font && l.size == block.size && l.color == block.color);
-                        // A whole, uniformly styled upright paragraph can use the existing shaped
-                        // added-text pipeline. Never flatten mixed styling or discard requested formatting.
-                        if !arabic || !uniform || block.rotation.abs() > 0.01
-                            || style != pdfcraft_engine::BlockStyle::default()
-                            || !(message.contains("complete source") || message.contains("fallback") || message.contains("glyph")) {
-                            return Err(error);
-                        }
-                        let info = &self.doc(&a)?.info.pages[page];
-                        if info.rotation != 0 || ((info.crop[2] - info.crop[0]) - info.width).abs() > 0.01 {
-                            return Err(error);
-                        }
-                        let p0 = info.user_to_view(block.rect[0] as f32, block.rect[1] as f32);
-                        let p1 = info.user_to_view(block.rect[2] as f32, block.rect[3] as f32);
-                        let ph = info.height as f64;
-                        let replacement = pdfcraft_engine::AddedText {
-                            rect: [p0[0].min(p1[0]) as f64, ph - p0[1].max(p1[1]) as f64,
-                                   p0[0].max(p1[0]) as f64, ph - p0[1].min(p1[1]) as f64],
-                            text: text.clone(), size: block.size, color: block.color,
-                            bold: block.bold, italic: block.italic, ..Default::default()
-                        };
-                        let mut result = self.apply(&a, Edit::Batch { label: "Edit text".into(), edits: vec![
-                            Edit::EditTextBlock { page, block: k as usize - 1, text: String::new(), style: Default::default() },
-                            Edit::AddText { page, text: replacement },
-                        ] })?;
-                        result["font_substituted"] = json!("Noto Sans Arabic");
-                        result
-                    }
-                };
+                let mut out = self.apply(&a, Edit::EditTextBlock { page, block: k as usize - 1, text: text.clone(), style: style.clone() })?;
                 if let Some(b) = self.doc(&a)?.text_blocks(page).get(k as usize - 1) {
                     out["paragraph"] = json!({ "text": b.text, "lines": b.lines.len(), "font": b.base_font });
                 }

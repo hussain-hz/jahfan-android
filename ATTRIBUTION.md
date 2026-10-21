@@ -4,10 +4,12 @@
 
 Every asset PdfCraft includes, bundles or uses to build its published material, with its author, source and licence. The policy is in [AGENTS.md](AGENTS.md) §1. The machine-readable list, with SHA-256 hashes, is [ATTRIBUTION.toml](ATTRIBUTION.toml). Licence texts are kept beside the assets and summarised in [NOTICE](NOTICE).
 
-## In this repository (272)
+## In this repository (274)
 
 | Asset | Title | Author | Licence | Source | Used for |
 |---|---|---|---|---|---|
+| `assets/fonts/JahfanArabic-Regular.ttf` | Noto Sans Arabic Regular static instance | The Noto Project Authors | OFL-1.1 | https://github.com/storytold/craft-fonts/tree/d1cf47d05e04426615fbda1d637b9ca6b1e7af35; generated with fonttools 4.60.1, wght=400, wdth=100 | Embedded Arabic PDF text and annotation shaping |
+| `assets/fonts/JahfanArabic-Bold.ttf` | Noto Sans Arabic Bold static instance | The Noto Project Authors | OFL-1.1 | https://github.com/storytold/craft-fonts/tree/d1cf47d05e04426615fbda1d637b9ca6b1e7af35; generated with fonttools 4.60.1, wght=700, wdth=100 | Embedded Arabic PDF text and annotation shaping |
 | `crates/ui-egui/src/i18n/el.tsv` | Greek interface translation catalog | Camthalion77 and contributors | MIT OR Apache-2.0 | Contributor-original: clean-room translations of PdfCraft English UI labels | Greek UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |
 | `crates/ui-egui/src/i18n/zh-hans.tsv` | Simplified Chinese interface translation catalog | PdfCraft contributors | MIT OR Apache-2.0 | Contributor-original: clean-room translations of PdfCraft's English UI labels, no proprietary localisation resources | Simplified Chinese UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |
 | `crates/ui-egui/src/i18n/zh-hant.tsv` | Traditional Chinese (Taiwan) interface translation catalog | PdfCraft contributors | MIT OR Apache-2.0 | Contributor-original: clean-room translations of PdfCraft's English UI labels, no proprietary localisation resources | Traditional Chinese UI strings, compiled in by crates/ui-egui/src/i18n/mod.rs |

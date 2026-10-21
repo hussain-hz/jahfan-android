@@ -290,6 +290,12 @@ pub fn undrawable_text(d: &Dict) -> Option<(&'static str, char)> {
         b"Redact" => ("the redaction's overlay text", text(b"OverlayText")?),
         _ => return None,
     };
+    if d.name(b"Subtype") == Some(b"FreeText")
+        && text.chars().any(|c| matches!(c as u32, 0x0600..=0x06ff | 0x0750..=0x077f | 0x08a0..=0x08ff))
+        && pdfcraft_fonts::document_arabic_font().is_some_and(|f| text.lines().all(|l| pdfcraft_fonts::source_shaping::shape(f.bytes, l).is_ok()))
+    {
+        return None;
+    }
     Some((what, first_undrawable(&text)?))
 }
 
@@ -297,6 +303,14 @@ pub fn undrawable_text(d: &Dict) -> Option<(&'static str, char)> {
 /// Text the standard fonts can't draw comes out as `?`: [`undrawable_text`] says which, and
 /// [`crate::set_appearance`] marks the annotation with it (`pdfcraft_fonts::UNDRAWN_MARK`).
 pub fn build(d: &Dict) -> Option<Stream> {
+    build_inner(d, None)
+}
+
+pub(crate) fn build_for_document(d: &Dict, doc: &mut pdfcraft_cos::Document) -> Option<Stream> {
+    build_inner(d, Some(doc))
+}
+
+fn build_inner(d: &Dict, mut document: Option<&mut pdfcraft_cos::Document>) -> Option<Stream> {
     // Imported measurement appearances may include leaders, captions and formatting that
     // this builder cannot reproduce. Preserve them rather than silently losing detail.
     if d.contains(b"Measure") && !d.contains(b"PCMeasureValue") {
@@ -740,6 +754,47 @@ pub fn build(d: &Dict) -> Option<Stream> {
             let pad = 2.0 + bw;
             let width = (rect[2] - rect[0] - 2.0 * pad).max(1.0);
             let q = d.int(b"Q").unwrap_or(0);
+            if text.chars().any(|ch| matches!(ch as u32, 0x0600..=0x06ff | 0x0750..=0x077f | 0x08a0..=0x08ff))
+                && let Some(doc) = document.as_deref_mut()
+            {
+                let face = pdfcraft_fonts::document_arabic_font()?;
+                let lines = pdfcraft_fonts::source_shaping::wrap(face.bytes, &text, width / size).ok()?;
+                let mut fonts = Dict::new();
+                c.push_str(&format!("{} {} {} {} re W n\n{}", n(rect[0]), n(rect[1]), n(rect[2] - rect[0]), n(rect[3] - rect[1]), rg(text_color)));
+                let mut y = rect[3] - pad - size * 0.9;
+                for line in lines {
+                    if y < rect[1] - size {
+                        break;
+                    }
+                    let shaped = pdfcraft_fonts::source_shaping::shape(face.bytes, &line).ok()?;
+                    let mappings: Vec<_> = shaped.glyphs.iter().map(|g| (g.text.clone(), g.id)).collect();
+                    if mappings.is_empty() {
+                        y -= size * 1.2;
+                        continue;
+                    }
+                    let font = pdfcraft_fonts::embedding::embed_mapping(doc, &mut fonts, face.bytes, face.family, &mappings).ok()?;
+                    let lw = shaped.advance * size;
+                    let x = match q {
+                        1 => rect[0] + pad + (width - lw) / 2.0,
+                        2 => rect[2] - pad - lw,
+                        _ => rect[0] + pad,
+                    };
+                    // ActualText preserves logical Unicode, including ligatures and diacritics.
+                    let actual = line.encode_utf16().map(|c| format!("{c:04X}")).collect::<String>();
+                    c.push_str(&format!("/Span << /ActualText <FEFF{actual}> >> BDC\nBT /{font} {} Tf\n", n(size)));
+                    for (i, g) in shaped.glyphs.iter().enumerate() {
+                        c.push_str(&format!("1 0 0 1 {} {} Tm <{:04X}> Tj\n", n(x + g.position[0] * size), n(y + g.position[1] * size), i + 1));
+                    }
+                    c.push_str("ET EMC\n");
+                    y -= size * 1.2;
+                }
+                res.set(b"Font".to_vec(), Object::Dict(fonts));
+                let mut stream = form(full, c.as_bytes(), res);
+                if let Some(m) = matrix {
+                    stream.dict.set(b"Matrix".to_vec(), Object::Array(m.iter().copied().map(Object::Real).collect()));
+                }
+                return Some(stream);
+            }
             c.push_str(&format!(
                 "{} {} {} {} re W n\nBT\n/Helv {} Tf\n{}",
                 n(rect[0]),

@@ -296,7 +296,30 @@ impl Automation {
                 "oval" => Shape::Oval { rect: rect_to_user(&info, a.need::<4>("rect", "an oval")?) },
                 "textbox" => {
                     let font_size = a.opt_num("font_size")?.unwrap_or(12.0);
-                    Shape::TextBox { rect: rect_to_user(&info, a.need::<4>("rect", "a text box")?), font_size }
+                    let mut rect = a.need::<4>("rect", "a text box")?;
+                    if a.opt_bool("auto_fit")?.unwrap_or(false) {
+                        let text = a.str("contents")?;
+                        if !font_size.is_finite() || font_size <= 0.0 {
+                            return Err(ToolError::InvalidArgs("invalid font size".into()));
+                        }
+                        let face =
+                            pdfcraft_fonts::document_arabic_font().ok_or_else(|| ToolError::InvalidArgs("Arabic document font is missing".into()))?;
+                        let width = (rect[2] - rect[0] - 4.0).max(1.0);
+                        let lines = pdfcraft_fonts::source_shaping::wrap(face.bytes, text, width / font_size).map_err(ToolError::InvalidArgs)?;
+                        let mut longest: f64 = 0.0;
+                        for line in &lines {
+                            longest = longest
+                                .max(pdfcraft_fonts::source_shaping::shape(face.bytes, line).map_err(ToolError::InvalidArgs)?.advance * font_size);
+                        }
+                        rect[2] = (rect[0] + longest + 5.0).min(rect[2]);
+                        let height = lines.len().max(1) as f64 * font_size * 1.2 + 6.0;
+                        if height > info.height as f64 {
+                            return Err(ToolError::InvalidArgs("text is taller than the page; reduce its size".into()));
+                        }
+                        rect[1] = rect[1].min(info.height as f64 - height).max(0.0);
+                        rect[3] = rect[1] + height;
+                    }
+                    Shape::TextBox { rect: rect_to_user(&info, rect), font_size }
                 }
                 "line" | "arrow" => {
                     let (f, t) = (a.need::<2>("from", "a line")?, a.need::<2>("to", "a line")?);

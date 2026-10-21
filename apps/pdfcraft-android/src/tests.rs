@@ -598,11 +598,127 @@ fn large_document_benchmark() {
 }
 
 #[test]
-fn arabic_fallback_does_not_change_rotated_source_orientation() {
+fn arabic_edit_preserves_rotated_page_and_history() {
     let s = MobileSession::new();
     let doc = s.open(text_pdf("Original paragraph"), None).unwrap().id;
     s.execute("page_rotate".into(), json!({"doc":doc,"degrees":90}).to_string()).unwrap();
-    let before = s.document(doc).unwrap().generation;
-    assert!(s.execute("text_edit".into(), json!({"doc":doc,"page":1,"paragraph":1,"text":"مرحبا جحفان"}).to_string()).is_err());
-    assert_eq!(before, s.document(doc).unwrap().generation);
+    let before = s.render_page(doc, 0, 1.0, None).unwrap();
+    s.execute("text_edit".into(), json!({"doc":doc,"page":1,"paragraph":1,"text":"مرحبا جحفان"}).to_string()).unwrap();
+    let after = s.render_page(doc, 0, 1.0, None).unwrap();
+    assert_eq!((before.width, before.height), (after.width, after.height));
+    assert_ne!(before.rgba, after.rgba);
+    s.execute("edit_undo".into(), json!({"doc":doc}).to_string()).unwrap();
+    assert_eq!(before.rgba, s.render_page(doc, 0, 1.0, None).unwrap().rgba);
+    s.execute("edit_redo".into(), json!({"doc":doc}).to_string()).unwrap();
+    let out = scratch().join("rotated-arabic.pdf");
+    s.execute("doc_save".into(), json!({"doc":doc,"path":out}).to_string()).unwrap();
+    let reopened = s.open(out.to_string_lossy().into_owned(), None).unwrap().id;
+    assert_eq!(after.rgba, s.render_page(reopened, 0, 1.0, None).unwrap().rgba);
+}
+
+#[test]
+#[ignore = "manual private document regression; set JAHFAN_PRIVATE_PDF"]
+fn private_arabic_document_regression() {
+    let path = std::env::var("JAHFAN_PRIVATE_PDF").unwrap();
+    let s = MobileSession::new();
+    let doc = s.open(path.clone(), None).unwrap().id;
+    let result = s.execute("text_paragraphs".into(), json!({"doc":doc,"page":1}).to_string()).unwrap();
+    let blocks: Value = serde_json::from_str(&result).unwrap();
+    for block in blocks["paragraphs"].as_array().unwrap() {
+        let text = block["editor_text"].as_str().unwrap_or("");
+        if !text.chars().any(|c| matches!(c as u32, 0x0600..=0x06ff)) {
+            continue;
+        }
+        let mut cases = vec![format!("{text} اختبار")];
+        let rows: Vec<_> = text.split('\n').collect();
+        for (index, row) in rows.iter().enumerate() {
+            if !row.chars().any(|c| matches!(c as u32, 0x0600..=0x06ff)) {
+                continue;
+            }
+            let mut changed: Vec<String> = rows.iter().map(|r| r.to_string()).collect();
+            let mut words: Vec<_> = row.split_whitespace().collect();
+            if let Some(word) = words.iter_mut().find(|w| w.chars().any(|c| matches!(c as u32, 0x0600..=0x06ff))) {
+                *word = "اختبار";
+            }
+            changed[index] = words.join(" ");
+            cases.push(changed.join("\n"));
+        }
+        for (case, replacement) in cases.iter().enumerate() {
+            let session = MobileSession::new();
+            let id = session.open(path.clone(), None).unwrap().id;
+            let result =
+                session.execute("text_edit".into(), json!({"doc":id,"page":1,"paragraph":block["paragraph"],"text":replacement}).to_string());
+            result.unwrap();
+            let rendered = session.render_page(id, 0, 1.0, None).unwrap().rgba;
+            let out = scratch().join("private-edited.pdf");
+            session.execute("doc_save".into(), json!({"doc":id,"path":out}).to_string()).unwrap();
+            let reopened = session.open(out.to_string_lossy().into_owned(), None).unwrap().id;
+            assert_eq!(rendered, session.render_page(reopened, 0, 1.0, None).unwrap().rgba);
+            assert!(!session.find_in_page(reopened, 0, "اختبار".into(), false, false).unwrap().is_empty());
+            if let Ok(dir) = std::env::var("JAHFAN_RENDER_DIR") {
+                std::fs::create_dir_all(&dir).unwrap();
+                std::fs::copy(out, PathBuf::from(dir).join(format!("private-{}-{case}.pdf", block["paragraph"]))).unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn arabic_comments_and_fill_text_roundtrip_and_restyle() {
+    for text in ["مرحبا بكم في جحفان", "العَرَبِيَّةُ جميلة", "Jahfan جحفان 123 (اختبار)", "السطر الأول\nالسطر الثاني"]
+    {
+        for fill in [false, true] {
+            let s = MobileSession::new();
+            let doc = s.open(blank_pdf(1), None).unwrap().id;
+            let (tool, args) = if fill {
+                ("fill_sign_add", json!({"doc":doc,"page":1,"type":"text","at":[80,200],"text":text,"font_size":18}))
+            } else {
+                ("comment_add", json!({"doc":doc,"page":1,"type":"textbox","rect":[80,200,500,300],"contents":text,"font_size":18,"auto_fit":true}))
+            };
+            s.execute(tool.into(), args.to_string()).unwrap();
+            let before = s.render_page(doc, 0, 1.0, None).unwrap().rgba;
+            assert!(before.chunks_exact(4).any(|p| p[0] < 150 && p[1] < 150), "text must render");
+            s.execute("comment_edit".into(), json!({"doc":doc,"page":1,"index":1,"color":"#008800","font_size":22,"move":[20,20]}).to_string())
+                .unwrap();
+            let modified = format!("{text} جديد");
+            s.execute("comment_edit".into(), json!({"doc":doc,"page":1,"index":1,"contents":modified}).to_string()).unwrap();
+            assert_eq!(s.comments(doc).unwrap()[0].contents.as_deref(), Some(modified.as_str()));
+            s.execute("edit_undo".into(), json!({"doc":doc}).to_string()).unwrap();
+            assert_eq!(s.comments(doc).unwrap()[0].contents.as_deref(), Some(text));
+            s.execute("edit_redo".into(), json!({"doc":doc}).to_string()).unwrap();
+            let out = scratch().join("arabic-comment.pdf");
+            s.execute("doc_save".into(), json!({"doc":doc,"path":out}).to_string()).unwrap();
+            let reopened = s.open(out.to_string_lossy().into_owned(), None).unwrap().id;
+            assert_eq!(s.comments(reopened).unwrap()[0].contents.as_deref(), Some(modified.as_str()));
+            assert_eq!(s.render_page(doc, 0, 1.0, None).unwrap().rgba, s.render_page(reopened, 0, 1.0, None).unwrap().rgba);
+            if let Ok(dir) = std::env::var("JAHFAN_RENDER_DIR") {
+                std::fs::create_dir_all(&dir).unwrap();
+                let name = format!("comment-{}-{}.pdf", fill, text.chars().count());
+                std::fs::copy(out, PathBuf::from(dir).join(name)).unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn arabic_line_edit_and_styled_paragraph_roundtrip() {
+    for line in [false, true] {
+        let s = MobileSession::new();
+        let doc = s.open(text_pdf("Original paragraph"), None).unwrap().id;
+        let mut args = json!({"doc":doc,"page":1,"text":"مرحبا جحفان 123"});
+        args[if line { "line" } else { "paragraph" }] = json!(1);
+        s.execute("text_edit".into(), args.to_string()).unwrap();
+        assert!(!s.find_in_page(doc, 0, "مرحبا".into(), false, false).unwrap().is_empty());
+        if !line {
+            s.execute(
+                "text_edit".into(),
+                json!({"doc":doc,"page":1,"paragraph":1,"text":"مرحبا جحفان 123","bold":true,"size":22,"color":"#008800"}).to_string(),
+            )
+            .unwrap();
+        }
+        let out = scratch().join("arabic-source.pdf");
+        s.execute("doc_save".into(), json!({"doc":doc,"path":out}).to_string()).unwrap();
+        let reopened = s.open(out.to_string_lossy().into_owned(), None).unwrap().id;
+        assert!(!s.find_in_page(reopened, 0, "مرحبا".into(), false, false).unwrap().is_empty());
+    }
 }

@@ -180,7 +180,10 @@ pub fn embed_mapping(
     descriptor.set(b"Type".to_vec(), Object::name("FontDescriptor"));
     descriptor.set(b"FontName".to_vec(), Object::name(&name));
     descriptor.set(b"FontFamily".to_vec(), Object::String(PdfString::literal(family.as_bytes().to_vec())));
-    descriptor.set(b"Flags".to_vec(), Object::Int(4));
+    descriptor.set(b"Flags".to_vec(), Object::Int(if m.italic_angle != 0.0 { 68 } else { 4 }));
+    if let Ok(os2) = font.os2() {
+        descriptor.set(b"FontWeight".to_vec(), Object::Int(i64::from(os2.us_weight_class())));
+    }
     descriptor.set(b"ItalicAngle".to_vec(), Object::Real(f64::from(m.italic_angle)));
     descriptor.set(b"Ascent".to_vec(), Object::Real(f64::from(m.ascent) * scale));
     descriptor.set(b"Descent".to_vec(), Object::Real(f64::from(m.descent) * scale));

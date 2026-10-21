@@ -640,6 +640,7 @@ pub fn tools() -> Vec<ToolDef> {
                 "points": { "type": "array", "items": point(), "minItems": 2 },
                 "knee": point(),
                 "contents": { "type": "string", "description": "The comment text (what a text box shows)." },
+                "auto_fit": { "type": "boolean", "description": "Fit Arabic text boxes using shaped font metrics." },
                 "author": { "type": "string" },
                 "at": point(),
                 "rect": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },

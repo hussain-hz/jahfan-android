@@ -897,14 +897,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // as the reference: lines that wrap where the page ends become real line breaks, and the box
         // is as wide as its longest line (measured as the engine draws it, so it doesn't wrap again)
         val (lines, width, height) = FreeTextLayout.layout(text, size, (page.width - at.x - 6f).coerceAtLeast(size * 4))
-        val wrapped = lines.joinToString("\n")
-        val x1 = (at.x + width).coerceAtMost(page.width)
+        val arabic = text.any { it.code in 0x0600..0x06ff || it.code in 0x0750..0x077f || it.code in 0x08a0..0x08ff }
+        val wrapped = if (arabic) text else lines.joinToString("\n")
+        val x1 = if (arabic) page.width - 2f else (at.x + width).coerceAtMost(page.width)
         val y1 = (at.y + height).coerceAtMost(page.height)
         runTool(
             prompt.doc, "comment_add",
             mapOf(
                 "page" to at.page + 1, "type" to "textbox", "rect" to listOf(at.x, at.y, x1, y1).map { it.toDouble() },
-                "contents" to wrapped, "color" to toolPrefs.color(StyledTool.FreeText).hex(), "font_size" to size.toDouble(), "author" to author,
+                "contents" to wrapped, "auto_fit" to arabic, "color" to toolPrefs.color(StyledTool.FreeText).hex(), "font_size" to size.toDouble(), "author" to author,
             ),
         )
     }

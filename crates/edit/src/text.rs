@@ -1701,6 +1701,16 @@ fn source_show(metrics: &Metrics, text: &str, size: f64, space: f64, char_spacin
 
 /// Replace the text of line `line` (an index into [`text_lines`]) on `page` with `text`.
 pub fn replace_line(doc: &mut Document, page: usize, line: usize, text: &str) -> Result<LineEdit, EditError> {
+    if text.chars().any(|c| matches!(c as u32, 0x0600..=0x06ff | 0x0750..=0x077f | 0x08a0..=0x08ff)) {
+        let lines = text_lines(doc, page)?;
+        let target = lines.get(line).cloned().ok_or_else(|| EditError::Invalid("text line does not exist".into()))?;
+        if target.upright() {
+            let source = vec![target];
+            let blocks = group_blocks(&source);
+            let block = blocks.first().ok_or_else(|| EditError::Invalid("text line has no editable region".into()))?;
+            return rewrite_styled_block(doc, page, block, &source, Some(text), &BlockStyle::default());
+        }
+    }
     replace_line_with_limit(doc, page, line, text, MAX_TYPE3_GLYPHS)
 }
 
@@ -2055,7 +2065,8 @@ fn rewrite_block_from(
                 || b.rows.iter().any(|row| row.len() > 1)
                 || members.iter().any(|line| line.font != first.font || line.size != first.size || line.color != first.color))
                 && style.family.is_none()
-                && style.bold.is_none())
+                && style.bold.is_none()
+            || text.unwrap_or(&b.editor_text).chars().any(|c| matches!(c as u32, 0x0600..=0x06ff | 0x0750..=0x077f | 0x08a0..=0x08ff)))
     {
         return rewrite_styled_block(doc, page, &b, &lines, text, style);
     }
