@@ -4473,3 +4473,52 @@ fn removing_marks_strips_wrappers_that_closed_open_state() {
     assert_eq!(remove_marks(&mut doc, &[0], MarkKind::Watermark).unwrap(), 1);
     assert_eq!(streams(&doc, 0), ["q 2 0 0 2 0 0 cm"]);
 }
+
+fn positioned_arabic_page(extra: &str) -> Document {
+    let cmap = "/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CMapType 2 def         1 begincodespacerange <00> <FF> endcodespacerange 7 beginbfchar         <20> <0020> <41> <0629> <42> <0643> <43> <0631> <44> <0634> <45> <0644> <46> <0627>         endbfchar endcmap CMapName currentdict /CMap defineresource pop end end";
+    let widths = (32..=70).map(|c| if c == 67 || c == 32 { "0" } else { "500" }).collect::<Vec<_>>().join(" ");
+    let content = format!(
+        "BT /F1 10 Tf 1 0 0 1 72 700 Tm (AB) Tj         1 0 0 1 86 707 Tm (C) Tj 1 0 0 1 87 697 Tm ( ) Tj         1 0 0 1 80 700 Tm (DEF) Tj ET {extra}"
+    );
+    build(&[
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        &stream("", &content),
+        &format!("<< /Type /Font /Subtype /Type1 /BaseFont /FakeArabic /FirstChar 32 /LastChar 70 /Widths [{widths}] /ToUnicode 6 0 R >>"),
+        &stream("", cmap),
+    ])
+}
+
+#[test]
+fn positioned_arabic_letters_stay_in_their_word_and_cell() {
+    let doc = positioned_arabic_page("BT /F1 10 Tf 300 700 Td (AB) Tj ET");
+    let lines = text::text_lines(&doc, 0).unwrap();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0].text, "الشركة");
+    let blocks = text::text_blocks(&doc, 0).unwrap();
+    assert_eq!(blocks.len(), 2, "separate table cells must not join");
+    assert_eq!(blocks[0].editor_text, "الشركة");
+    assert!(blocks[0].rect[0] <= 72.0 && blocks[0].rect[2] >= 95.0);
+}
+
+#[test]
+fn replacing_positioned_arabic_removes_all_source_fragments() {
+    let mut doc = positioned_arabic_page("");
+    text::replace_block(&mut doc, 0, 0, "Replacement").unwrap();
+    let doc = reopen(&doc);
+    let lines = text::text_lines(&doc, 0).unwrap();
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].text, "Replacement");
+    let bytes = page_content_bytes(&doc, 0);
+    let content = String::from_utf8_lossy(&bytes);
+    assert!(!content.contains("(AB)") && !content.contains("(C)") && !content.contains("(DEF)"));
+}
+
+#[test]
+fn rtl_fragments_emitted_right_to_left_form_one_row() {
+    let doc = arabic_ligature_page("BT /F1 10 Tf 100 700 Td (A) Tj ET BT /F1 10 Tf 94.95 700 Td (B) Tj ET", false);
+    let blocks = text::text_blocks(&doc, 0).unwrap();
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].editor_text, "سم");
+}

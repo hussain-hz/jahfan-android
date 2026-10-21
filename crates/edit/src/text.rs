@@ -660,8 +660,12 @@ struct Shown {
 }
 
 impl Shown {
-    /// The unit direction of its baseline, where it starts and ends along it, and the baseline's
-    /// offset across it (for upright text: the user-space x, x and y).
+    /// Independently positioned contextual Arabic/Hebrew glyph, with no pen advance.
+    fn positioned_rtl(&self) -> bool {
+        self.advance.abs() < 1e-6 && self.text.chars().any(crate::bidi::is_rtl)
+    }
+
+    /// Baseline direction, start/end along it, and offset across it.
     fn span(&self) -> ((f64, f64), f64, f64, f64) {
         let dir = direction(&self.tm.then(&self.state.ctm));
         let (start, across) = to_frame(dir, (self.start_x, self.baseline));
@@ -678,12 +682,13 @@ struct Pen {
     across: f64,
     end: f64,
     size: f64,
+    positioned_rtl: bool,
 }
 
 impl Pen {
     fn after(s: &Shown) -> Self {
         let (dir, _, end, across) = s.span();
-        Pen { bt: s.bt, dir, across, end, size: s.size.max(1.0) }
+        Pen { bt: s.bt, dir, across, end, size: s.size.max(1.0), positioned_rtl: s.positioned_rtl() }
     }
 
     /// Whether `s` could continue the same line on geometry alone: on the same baseline, starting
@@ -692,7 +697,11 @@ impl Pen {
         let (dir, start, _, across) = s.span();
         let gap = start - self.end;
         let same_dir = (dir.0 - self.dir.0).abs() < 1e-3 && (dir.1 - self.dir.1).abs() < 1e-3;
-        (same_dir && (across - self.across).abs() < self.size * 0.3 && gap > -self.size && gap < self.size * reach, gap)
+        // Word/Calibri may position an Arabic contextual glyph independently with zero
+        // advance and a small baseline offset. It is part of its surrounding word.
+        let positioned = self.positioned_rtl || s.positioned_rtl();
+        let tolerance = if positioned { 0.8 } else { 0.3 };
+        (same_dir && (across - self.across).abs() < self.size * tolerance && gap > -self.size && gap < self.size * reach, gap)
     }
 }
 
@@ -1006,6 +1015,23 @@ pub fn text_lines(doc: &Document, page: usize) -> Result<Vec<TextLine>, EditErro
     let shown = interpret(doc, &ops, &fonts_res, &mut cache, &mut carry, None, true);
     let mut last: Option<(usize, Pen)> = None; // the stream piece and where its last run ended
     for mut s in shown {
+        // Displaced zero-advance spaces beside Arabic glyphs can be positioning artifacts.
+        // Keep their operators with the row for replacement, but not their text/pen.
+        if s.advance.abs() < 1e-6
+            && s.text.trim().is_empty()
+            && !s.actual_text
+            && let Some((_, pen)) = last
+            && pen.bt == s.bt
+            && let Some(line) = lines.last_mut()
+            && (pen.positioned_rtl
+                || ((s.span().3 - pen.across).abs() > pen.size * 0.15
+                    && line.text.chars().any(crate::bidi::is_rtl)
+                    && same_font(line, &s.font, s.face.as_deref())))
+        {
+            line.ops.push(s.op);
+            line.ops.extend(s.extra_ops.iter().copied());
+            continue;
+        }
         // A single RTL glyph's ActualText (e.g. lam-alef) is an inline ligature, not a
         // separate logical line. Put its letters into visual order before joining the
         // surrounding glyphs; the completed line is recovered to typing order below.
@@ -1035,7 +1061,12 @@ pub fn text_lines(doc: &Document, page: usize) -> Result<Vec<TextLine>, EditErro
         });
         if joins && let Some(l) = lines.last_mut() {
             let gap = last.map_or(0.0, |(_, pen)| pen.continues(&s, 0.0).1);
-            if gap > l.size * 0.2 && !l.text.ends_with(' ') && !s.text.starts_with(' ') {
+            if gap > l.size * 0.2
+                && !s.positioned_rtl()
+                && !last.is_some_and(|(_, p)| p.positioned_rtl)
+                && !l.text.ends_with(' ')
+                && !s.text.starts_with(' ')
+            {
                 l.text.push(' ');
             }
             l.text.push_str(&s.text);
@@ -1079,7 +1110,20 @@ pub fn text_lines(doc: &Document, page: usize) -> Result<Vec<TextLine>, EditErro
                 },
             });
         }
-        last = Some((si, Pen::after(&s)));
+        let mut next = Pen::after(&s);
+        if s.positioned_rtl()
+            && joins
+            && let Some((_, previous)) = last
+        {
+            next.across = previous.across;
+            next.end = previous.end;
+        }
+        if s.text.trim().is_empty()
+            && let Some((_, previous)) = last
+        {
+            next.positioned_rtl |= previous.positioned_rtl;
+        }
+        last = Some((si, next));
     }
     // Content streams draw right-to-left lines in visual order; the editor works in typing order.
     for l in lines.iter_mut().filter(|l| !l.logical_order) {
@@ -1110,6 +1154,21 @@ fn compatible_word(line: &TextLine, shown: &Shown) -> bool {
 /// The line `s` continues, or a new one: `last` is the previous run of the same stream
 /// (`bt`, baseline, end x, size).
 fn add_shown(lines: &mut Vec<TextLine>, last: &mut Option<Pen>, s: Shown, stream: usize) {
+    if s.advance.abs() < 1e-6
+        && s.text.trim().is_empty()
+        && !s.actual_text
+        && let Some(pen) = *last
+        && pen.bt == s.bt
+        && let Some(line) = lines.last_mut()
+        && (pen.positioned_rtl
+            || ((s.span().3 - pen.across).abs() > pen.size * 0.15
+                && line.text.chars().any(crate::bidi::is_rtl)
+                && same_font(line, &s.font, s.face.as_deref())))
+    {
+        line.ops.push(s.op);
+        line.ops.extend(s.extra_ops.iter().copied());
+        return;
+    }
     let joins = last.is_some_and(|pen| {
         let bt = pen.bt;
         lines.last().is_some_and(|l| l.scope == s.scope && l.logical_order == s.logical_order)
@@ -1123,7 +1182,8 @@ fn add_shown(lines: &mut Vec<TextLine>, last: &mut Option<Pen>, s: Shown, stream
     });
     if joins && let Some(l) = lines.last_mut() {
         let gap = last.map_or(0.0, |pen| pen.continues(&s, 0.0).1);
-        if gap > l.size * 0.2 && !l.text.ends_with(' ') && !s.text.starts_with(' ') {
+        if gap > l.size * 0.2 && !s.positioned_rtl() && !last.is_some_and(|p| p.positioned_rtl) && !l.text.ends_with(' ') && !s.text.starts_with(' ')
+        {
             l.text.push(' ');
         }
         l.text.push_str(&s.text);
@@ -1166,7 +1226,20 @@ fn add_shown(lines: &mut Vec<TextLine>, last: &mut Option<Pen>, s: Shown, stream
             },
         });
     }
-    *last = Some(Pen::after(&s));
+    let mut next = Pen::after(&s);
+    if s.positioned_rtl()
+        && joins
+        && let Some(previous) = *last
+    {
+        next.across = previous.across;
+        next.end = previous.end;
+    }
+    if s.text.trim().is_empty()
+        && let Some(previous) = *last
+    {
+        next.positioned_rtl |= previous.positioned_rtl;
+    }
+    *last = Some(next);
 }
 
 /// How deep form XObjects nest before reading stops (they may also refer to themselves).

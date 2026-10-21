@@ -64,11 +64,17 @@ fn same_style(a: &TextLine, b: &TextLine) -> bool {
         && (a.size - b.size).abs() < 0.01
 }
 
+fn inline_gap(a: &TextLine, b: &TextLine) -> f64 {
+    let (a, b) = (a.frame_rect(), b.frame_rect());
+    if b[0] >= a[0] { b[0] - a[2] } else { a[0] - b[2] }
+}
+
 fn group_layout(lines: &[TextLine], mixed: bool) -> Vec<TextBlock> {
     let mut rows: Vec<Vec<usize>> = Vec::new();
     for (i, line) in lines.iter().enumerate() {
         let joins = rows.last().and_then(|r| r.last()).and_then(|i| lines.get(*i)).is_some_and(|prev| {
-            let gap = line.frame_rect()[0] - prev.frame_rect()[2];
+            let rtl = crate::bidi::rtl_base(&prev.text) || crate::bidi::rtl_base(&line.text);
+            let gap = if rtl { inline_gap(prev, line) } else { line.frame_rect()[0] - prev.frame_rect()[2] };
             // OCR words (invisible text over a scan) join only across a word space: a wider gap
             // is a table cell or a tab stop, which a rewrite would close up.
             let scanned = !mixed || (invisible(prev) == invisible(line) && (!invisible(line) || gap < prev.size.max(line.size) * 0.6));
@@ -83,6 +89,7 @@ fn group_layout(lines: &[TextLine], mixed: bool) -> Vec<TextBlock> {
                 // another, #594). Style runs and words separated by a space or gap still join.
                 && (prev.origin.bt_op == line.origin.bt_op
                     || gap > prev.size.min(line.size) * 0.01
+                    || (rtl && gap > 0.0)
                     || !same_style(prev, line)
                     || prev.text.ends_with(char::is_whitespace)
                     || line.text.starts_with(char::is_whitespace))
@@ -94,7 +101,14 @@ fn group_layout(lines: &[TextLine], mixed: bool) -> Vec<TextBlock> {
         }
     }
     let mut blocks: Vec<TextBlock> = Vec::new();
-    for row in rows {
+    for mut row in rows {
+        // Reorder purely RTL fragments geometrically. Mixed-script rows retain their
+        // source order; reversing separately styled Latin runs would scramble words.
+        if row.iter().any(|i| crate::bidi::rtl_base(&lines[*i].text))
+            && row.iter().all(|i| !lines[*i].text.chars().any(|c| c.is_alphabetic() && !crate::bidi::is_rtl(c)))
+        {
+            row.sort_by(|a, b| lines[*b].frame_rect()[2].total_cmp(&lines[*a].frame_rect()[2]));
+        }
         let Some(first) = row.first().and_then(|i| lines.get(*i)) else { continue };
         let (Some(rect), Some(frame)) = (row_rect(&row, lines), frame_row_rect(&row, lines)) else { continue };
         let joins = blocks.last().is_some_and(|block| {
@@ -142,7 +156,7 @@ fn group_layout(lines: &[TextLine], mixed: bool) -> Vec<TextBlock> {
             if let Some(prev) = block.lines.last().filter(|i| row.contains(i)).and_then(|i| lines.get(*i))
                 && !row_text.ends_with(char::is_whitespace)
                 && !line.text.starts_with(char::is_whitespace)
-                && line.frame_rect()[0] - prev.frame_rect()[2] > line.size * 0.12
+                && inline_gap(prev, line) > line.size * 0.12
             {
                 row_text.push(' ');
                 block.editor_text.push(' ');

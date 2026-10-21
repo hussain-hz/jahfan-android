@@ -741,3 +741,35 @@ fn inline_editor_rows_keep_geometry_and_utf16_style_ranges() {
         }
     }
 }
+
+#[test]
+#[ignore = "local layout diagnostics; set JAHFAN_PRIVATE_PDF and JAHFAN_LAYOUT_DUMP"]
+fn private_layout_dump() {
+    let s = MobileSession::new();
+    let doc = s.open(std::env::var("JAHFAN_PRIVATE_PDF").unwrap(), None).unwrap().id;
+    let mut out = serde_json::Map::new();
+    for method in ["text_lines", "text_paragraphs"] {
+        let result = s.execute(method.into(), json!({"doc":doc,"page":1}).to_string()).unwrap();
+        out.insert(method.into(), serde_json::from_str::<Value>(&result).unwrap());
+    }
+    std::fs::write(std::env::var("JAHFAN_LAYOUT_DUMP").unwrap(), serde_json::to_vec_pretty(&out).unwrap()).unwrap();
+}
+
+#[test]
+#[ignore = "private fragmented Arabic fixture; set JAHFAN_PRIVATE_PDF and JAHFAN_EDITED_PDF"]
+fn private_fragmented_arabic_selection_roundtrip() {
+    let s = MobileSession::new();
+    let doc = s.open(std::env::var("JAHFAN_PRIVATE_PDF").unwrap(), None).unwrap().id;
+    let result = s.execute("text_paragraphs".into(), json!({"doc":doc,"page":1}).to_string()).unwrap();
+    let blocks: Value = serde_json::from_str(&result).unwrap();
+    let blocks = blocks["paragraphs"].as_array().unwrap();
+    let company = blocks.iter().find(|b| b["editor_text"].as_str().unwrap().trim() == "الشركة").expect("complete company label");
+    assert!(blocks.iter().any(|b| b["editor_text"].as_str().unwrap().trim() == "الموقع"));
+    assert!(!blocks.iter().any(|b| b["editor_text"].as_str().unwrap().trim() == "ر"));
+    s.execute("text_edit".into(), json!({"doc":doc,"page":1,"paragraph":company["paragraph"],"text":"الشركة الجديدة"}).to_string()).unwrap();
+    let expected = s.render_page(doc, 0, 1.0, None).unwrap().rgba;
+    let out = std::env::var("JAHFAN_EDITED_PDF").unwrap();
+    s.execute("doc_save".into(), json!({"doc":doc,"path":out}).to_string()).unwrap();
+    let reopened = s.open(out, None).unwrap().id;
+    assert_eq!(expected, s.render_page(reopened, 0, 1.0, None).unwrap().rgba);
+}
